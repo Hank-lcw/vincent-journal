@@ -24,7 +24,9 @@ async function hasMailDns(email: string): Promise<boolean> {
     const data:any = await res.json();
     if (Array.isArray(data.Answer) && data.Answer.some((x:any)=>x.type === 15)) return true;
     const a = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=A`, { headers:{accept:'application/dns-json'} }).then(async r => await r.json() as any);
-    return Array.isArray(a.Answer) && a.Answer.some((x:any)=>x.type === 1 || x.type === 28);
+    if(Array.isArray(a.Answer) && a.Answer.some((x:any)=>x.type === 1)) return true;
+    const aaaa = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=AAAA`, { headers:{accept:'application/dns-json'} }).then(async r => await r.json() as any);
+    return Array.isArray(aaaa.Answer) && aaaa.Answer.some((x:any)=>x.type === 28);
   } catch { return true; }
 }
 
@@ -51,7 +53,9 @@ export async function subscribe(env: Env, request: Request, input: any): Promise
   const suppression = await env.DB.prepare(`SELECT id FROM suppressions WHERE email=? COLLATE NOCASE LIMIT 1`).bind(email).first();
   if (suppression) return {ok:true,message:'如果這個信箱可以訂閱，我們會寄送確認信。'};
   const existing = await env.DB.prepare(`SELECT * FROM subscribers WHERE email=? COLLATE NOCASE`).bind(email).first<any>();
-  if (existing?.status === 'active') return {ok:true,message:'這個信箱已完成訂閱。'};
+  if (existing?.status === 'active') return {ok:true,message:'如果這個信箱可以訂閱，我們會寄送確認信。'};
+  if(existing?.status === 'pending' && existing.updated_at && Date.now()-new Date(existing.updated_at).getTime()<120_000)
+    return {ok:true,message:'如果這個信箱可以訂閱，我們會寄送確認信。'};
 
   const verifyToken = randomToken(32), unsubToken = randomToken(32);
   const verifyHash = await sha256(verifyToken), unsubHash = await sha256(unsubToken);
@@ -143,9 +147,14 @@ export async function listNewsletterCampaigns(env:Env,user:AuthUser):Promise<any
   return results||[];
 }
 export async function createNewsletterCampaign(env: Env, request: Request, user: AuthUser, input:any): Promise<any> {
+  requireRole(user,'editor');
+  const subject=String(input.subject||'').trim();
+  const htmlBody=String(input.html||'').trim();
+  if(!subject) throw new HttpError(400,'電子報主旨不可空白');
+  if(input.submit_for_review && !htmlBody) throw new HttpError(400,'送審前請先完成電子報內容');
   const id=uuid(), now=nowIso(), status=input.submit_for_review?'in_review':'draft';
   await env.DB.prepare(`INSERT INTO newsletter_campaigns (id,issue_id,subject,preview_text,html,text_body,status,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`)
-    .bind(id,input.issue_id||null,String(input.subject||'').slice(0,200),String(input.preview_text||'').slice(0,300),String(input.html||''),String(input.text_body||''),status,user.id,now,now).run();
+    .bind(id,input.issue_id||null,subject.slice(0,200),String(input.preview_text||'').slice(0,300),htmlBody,String(input.text_body||''),status,user.id,now,now).run();
   await audit(env,request,user,'newsletter.create','newsletter',id,{status});
   return env.DB.prepare(`SELECT * FROM newsletter_campaigns WHERE id=?`).bind(id).first();
 }
@@ -153,6 +162,7 @@ export async function approveNewsletter(env:Env,request:Request,user:AuthUser,id
   requireRole(user,'reviewer');
   const row=await env.DB.prepare(`SELECT * FROM newsletter_campaigns WHERE id=?`).bind(id).first<any>();
   if(!row) throw new HttpError(404,'找不到電子報');
+  if(row.status!=='in_review') throw new HttpError(409,'只有待審電子報可以核准');
   await env.DB.prepare(`UPDATE newsletter_campaigns SET status='approved',approved_by=?,updated_at=? WHERE id=?`).bind(user.id,nowIso(),id).run();
   await audit(env,request,user,'newsletter.approve','newsletter',id);
   return env.DB.prepare(`SELECT * FROM newsletter_campaigns WHERE id=?`).bind(id).first();

@@ -55,9 +55,10 @@ export function securityHeaders(response: Response): Response {
       "img-src 'self' data: blob: https:",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      "script-src 'self' 'unsafe-inline'",
+      "script-src 'self'",
       "connect-src 'self'",
       "frame-ancestors 'none'",
+      "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'"
     ].join('; '));

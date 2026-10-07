@@ -83,7 +83,7 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
       return json({media:await setMediaVisibility(env,request,user,seg[3],input.visibility)});
     }
 
-    if(method==='GET' && p==='/api/admin/newsletter/subscribers') return json({subscribers:await listSubscribers(env)});
+    if(method==='GET' && p==='/api/admin/newsletter/subscribers') return json({subscribers:await listSubscribers(env,user)});
     if(method==='GET' && p==='/api/admin/newsletter/campaigns') return json({campaigns:await listNewsletterCampaigns(env,user)});
     if(method==='POST' && p==='/api/admin/newsletter/campaigns') return json({campaign:await createNewsletterCampaign(env,request,user,await readJson(request))},201);
     if(method==='POST' && seg[2]==='newsletter' && seg[3]==='campaigns' && seg[4] && seg[5]==='approve') return json({campaign:await approveNewsletter(env,request,user,seg[4])});

@@ -70,7 +70,7 @@ export async function listPublicArticles(env: Env, url: URL): Promise<any[]> {
 }
 
 export async function getPublicArticle(env: Env, slug: string): Promise<any> {
-  const row = await env.DB.prepare(`SELECT a.*,m.public_url AS cover_url,m.alt_text AS cover_alt FROM articles a LEFT JOIN media_assets m ON m.id=a.cover_media_id WHERE a.slug=? AND a.status='published'`).bind(slug).first<any>();
+  const row = await env.DB.prepare(`SELECT a.id,a.slug,a.title,a.subtitle,a.excerpt,a.body,a.category,a.read_time_minutes,a.featured,a.seo_title,a.seo_description,a.published_at,m.public_url AS cover_url,m.alt_text AS cover_alt FROM articles a LEFT JOIN media_assets m ON m.id=a.cover_media_id WHERE a.slug=? AND a.status='published'`).bind(slug).first<any>();
   if (!row) throw new HttpError(404, '找不到文章');
   return row;
 }
@@ -100,6 +100,10 @@ export async function updateArticle(env: Env, request: Request, user: AuthUser, 
   await snapshot(env, id, user, '修改前自動版本');
   const sets = keys.map(k => `${k}=?`);
   const vals = keys.map(k => data[k]);
+  const resetReview = ['in_review','approved','published'].includes(String(current.status));
+  if (resetReview) {
+    sets.push("status='draft'","published_at=NULL");
+  }
   sets.push('updated_by=?','updated_at=?'); vals.push(user.id, nowIso(), id);
   try {
     await env.DB.prepare(`UPDATE articles SET ${sets.join(',')} WHERE id=?`).bind(...vals).run();
@@ -107,7 +111,7 @@ export async function updateArticle(env: Env, request: Request, user: AuthUser, 
     if (String(e).includes('UNIQUE')) throw new HttpError(409, '文章網址 slug 已存在');
     throw e;
   }
-  await audit(env, request, user, 'article.update', 'article', id, { fields: keys });
+  await audit(env, request, user, 'article.update', 'article', id, { fields: keys, workflow_reset_to_draft: resetReview, previous_status: current.status });
   return env.DB.prepare(`SELECT * FROM articles WHERE id=?`).bind(id).first();
 }
 

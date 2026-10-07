@@ -102,3 +102,5 @@ Worker 會再次驗證 `Cf-Access-Jwt-Assertion`，不是只依賴前方 Access 
 - [x] Database ID pinned: `50dc4b25-df3a-4cfd-b496-a037ac65a999`
 - [ ] Cloudflare Build deploy command changed to `npm run deploy:cloudflare`
 - [ ] Confirm migration creates the production tables
+
+- [ ] Fresh build after deploy-command change (do not rely on retrying an older build snapshot)

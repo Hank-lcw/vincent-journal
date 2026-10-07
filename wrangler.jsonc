@@ -13,6 +13,7 @@
     {
       "binding": "DB",
       "database_name": "vincent-journal-runtime",
+      "database_id": "50dc4b25-df3a-4cfd-b496-a037ac65a999",
       "migrations_dir": "migrations"
     }
   ],

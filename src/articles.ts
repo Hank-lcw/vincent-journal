@@ -6,13 +6,24 @@ import { audit } from './audit';
 
 const categories = new Set(['aesthetics','healthy-aging','longevity']);
 
+function sanitizeArticleHtml(input:string):string {
+  return input.slice(0,100_000)
+    .replace(/<!--([\s\S]*?)-->/g,'')
+    .replace(/<(script|iframe|object|embed|form|input|button|textarea|select|option|meta|link|base)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'')
+    .replace(/<(script|iframe|object|embed|form|input|button|textarea|select|option|meta|link|base)\b[^>]*\/?\s*>/gi,'')
+    .replace(/\son[a-z]+\s*=\s*(["'])([\s\S]*?)\1/gi,'')
+    .replace(/\son[a-z]+\s*=\s*[^\s>]+/gi,'')
+    .replace(/\sstyle\s*=\s*(["'])([\s\S]*?)\1/gi,'')
+    .replace(/\s(href|src)\s*=\s*(["'])\s*javascript:[\s\S]*?\2/gi,'');
+}
+
 function normalizeArticleInput(input: any, partial = false) {
   const out: Record<string, any> = {};
   const take = (k: string, v: any) => { if (v !== undefined) out[k] = v; };
-  take('title', input.title != null ? String(input.title).trim() : undefined);
-  take('subtitle', input.subtitle != null ? String(input.subtitle) : undefined);
-  take('excerpt', input.excerpt != null ? String(input.excerpt) : undefined);
-  take('body', input.body != null ? String(input.body) : undefined);
+  take('title', input.title != null ? String(input.title).trim().slice(0,180) : undefined);
+  take('subtitle', input.subtitle != null ? String(input.subtitle).trim().slice(0,300) : undefined);
+  take('excerpt', input.excerpt != null ? String(input.excerpt).trim().slice(0,800) : undefined);
+  take('body', input.body != null ? sanitizeArticleHtml(String(input.body)) : undefined);
   if (input.category !== undefined) {
     const c = String(input.category);
     if (!categories.has(c)) throw new HttpError(400, '文章分類無效');
@@ -25,6 +36,7 @@ function normalizeArticleInput(input: any, partial = false) {
   take('seo_title', input.seo_title === null ? null : (input.seo_title != null ? String(input.seo_title).slice(0, 70) : undefined));
   take('seo_description', input.seo_description === null ? null : (input.seo_description != null ? String(input.seo_description).slice(0, 180) : undefined));
   if (!partial && !out.title) throw new HttpError(400, '文章標題不可空白');
+  if (out.title !== undefined && !out.title) throw new HttpError(400, '文章標題不可空白');
   return out;
 }
 
@@ -117,6 +129,8 @@ export async function transitionArticle(env: Env, request: Request, user: AuthUs
   } else if (action === 'publish') {
     requireRole(user, 'reviewer');
     if (!['approved','published'].includes(status)) throw new HttpError(409, '文章需先核准才能發布');
+    if (!String(current.excerpt || '').trim()) throw new HttpError(409, '發布前請補上文章摘要');
+    if (!String(current.body || '').trim()) throw new HttpError(409, '發布前請補上文章內文');
     status = 'published';
   } else if (action === 'archive') {
     requireRole(user, 'admin');

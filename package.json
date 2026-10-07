@@ -10,7 +10,7 @@
     "db:migrate:local": "wrangler d1 migrations apply vincent-journal --local",
     "db:migrate:remote": "wrangler d1 migrations apply vincent-journal-runtime --remote",
     "cf:types": "wrangler types",
-    "deploy:cloudflare": "wrangler deploy && wrangler d1 migrations apply vincent-journal-runtime --remote",
+    "deploy:cloudflare": "npm run typecheck && npm run qa && wrangler deploy && wrangler d1 migrations apply vincent-journal-runtime --remote && node scripts/smoke.mjs",
     "qa": "node scripts/qa.mjs",
     "smoke": "node scripts/smoke.mjs"
   },

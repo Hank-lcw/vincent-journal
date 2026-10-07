@@ -38,6 +38,7 @@ export async function submitSocialDraft(env:Env,request:Request,user:AuthUser,id
 }
 export async function approveSocialDraft(env:Env,request:Request,user:AuthUser,id:string,note=''):Promise<any>{
   requireRole(user,'reviewer'); const row=await env.DB.prepare(`SELECT * FROM social_drafts WHERE id=?`).bind(id).first<any>(); if(!row) throw new HttpError(404,'找不到社群草稿');
+  if(row.status!=='in_review') throw new HttpError(409,'只有待審社群草稿可以核准');
   await env.DB.prepare(`UPDATE social_drafts SET status='approved',approved_by=?,updated_at=? WHERE id=?`).bind(user.id,nowIso(),id).run();
   await env.DB.prepare(`INSERT INTO approvals (id,entity_type,entity_id,action,note,actor_id,created_at) VALUES (?,'social',?,'approve',?,?,?)`).bind(uuid(),id,note,user.id,nowIso()).run();
   await audit(env,request,user,'social.approve','social',id,{note}); return env.DB.prepare(`SELECT * FROM social_drafts WHERE id=?`).bind(id).first();
@@ -105,6 +106,7 @@ export async function publishSocialDraft(env:Env,request:Request,user:AuthUser,i
 }
 export async function publishSocialDraftSystem(env:Env,id:string):Promise<void>{
   const row=await env.DB.prepare(`SELECT * FROM social_drafts WHERE id=?`).bind(id).first<any>(); if(!row) throw new Error('social draft not found');
+  if(row.status!=='scheduled') throw new Error('social draft is not scheduled');
   let external=''; if(row.platform==='facebook') external=await publishFacebook(env,row); else if(row.platform==='instagram') external=await publishInstagram(env,row); else if(row.platform==='threads') external=await publishThreads(env,row); else { await env.DB.prepare(`UPDATE social_drafts SET status='ready_to_publish',updated_at=? WHERE id=?`).bind(nowIso(),id).run(); return; }
   await env.DB.prepare(`UPDATE social_drafts SET status='published',published_at=?,external_post_id=?,updated_at=? WHERE id=?`).bind(nowIso(),external,nowIso(),id).run();
 }

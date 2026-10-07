@@ -2,10 +2,44 @@
 async function api(path,opt={}){const r=await fetch(path,{credentials:"same-origin",...opt,headers:{...(opt.body instanceof FormData?{}:{"content-type":"application/json"}),...(opt.headers||{})}});const t=(r.headers.get("content-type")||"").includes("json")?await r.json():await r.text();if(!r.ok)throw new Error(t?.error||t||("HTTP "+r.status));return t}
 function toast(m){const el=$("#toast");el.textContent=m;el.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(()=>el.style.display="none",3500)}
 const titles={dashboard:"首頁總覽",articles:"文章管理",publish:"發布中心",media:"媒體工作室",newsletter:"電子報工作室",social:"社群發布工作室",system:"系統與權限"};
-function show(v){$$(".view").forEach(x=>x.classList.toggle("active",x.dataset.view===v));$$("#studioMenu button").forEach(x=>x.classList.toggle("active",x.dataset.view===v));$("#viewTitle").textContent=titles[v]||"VINCENT STUDIO";if(v==="articles")loadArticles();if(v==="media")loadMedia();if(v==="newsletter")loadNewsletter();if(v==="social")loadSocial();if(v==="system")loadSystem()}
+function show(v){$(".view").forEach(x=>x.classList.toggle("active",x.dataset.view===v));$("#studioMenu button").forEach(x=>x.classList.toggle("active",x.dataset.view===v));$("#viewTitle").textContent=titles[v]||"VINCENT STUDIO";if(v==="articles")loadArticles();if(v==="publish")loadPublish();if(v==="media")loadMedia();if(v==="newsletter")loadNewsletter();if(v==="social")loadSocial();if(v==="system")loadSystem()}
 $$("#studioMenu button").forEach(b=>b.onclick=()=>show(b.dataset.view));$$("[data-jump]").forEach(b=>b.onclick=()=>show(b.dataset.jump));
 async function loadStatus(){const d=await api("/studio/api/admin/system/status");me=d.user;$("#welcome").textContent=`歡迎回來，${me.displayName||me.email} · ${me.role}`;$("#metricArticles").textContent=d.counts?.articles??0;$("#metricMedia").textContent=d.counts?.media??0;$("#metricSubscribers").textContent=d.counts?.subscribers??0;const ready=d.configured?.access&&d.configured?.encryption;$("#metricSystem").textContent=ready?"正常":"待設定";return d}
-async function loadArticles(){try{const d=await api("/studio/api/admin/articles");$("#articlesTable").innerHTML=`<table class="table"><thead><tr><th>標題</th><th>分類</th><th>狀態</th><th>更新</th><th></th></tr></thead><tbody>${(d.articles||[]).map(a=>`<tr><td>${a.title}</td><td>${a.category}</td><td><span class="badge ${a.status==="published"?"":"warn"}">${a.status}</span></td><td>${(a.updated_at||"").slice(0,10)}</td><td>${a.status==="draft"?`<button data-submit="${a.id}">送審</button>`:""}</td></tr>`).join("")}</tbody></table>`;$$("[data-submit]").forEach(b=>b.onclick=async()=>{await api("/studio/api/admin/articles/"+b.dataset.submit+"/submit",{method:"POST",body:"{}"});toast("已送審");loadArticles()})}catch(e){toast(e.message)}}
+const roleRank={editor:10,reviewer:20,admin:30,owner:40};
+function canReview(){return (roleRank[me?.role]||0)>=20}
+function statusLabel(s){return ({draft:"草稿",in_review:"待審",approved:"已核准",published:"已發布",archived:"已封存"})[s]||s}
+function articleActionButtons(a){
+ const out=[];
+ if(a.status==="draft") out.push(`<button class="btn" data-article-action="submit" data-id="${a.id}">送審</button>`);
+ if(canReview()&&a.status==="in_review"){
+   out.push(`<button class="btn primary" data-article-action="approve" data-id="${a.id}">核准</button>`);
+   out.push(`<button class="btn" data-article-action="reject" data-id="${a.id}">退回</button>`);
+   out.push(`<button class="btn primary" data-article-action="approve-publish" data-id="${a.id}">核准並發布</button>`);
+ }
+ if(canReview()&&a.status==="approved"){
+   out.push(`<button class="btn primary" data-article-action="publish" data-id="${a.id}">發布</button>`);
+   out.push(`<button class="btn" data-article-action="reject" data-id="${a.id}">退回草稿</button>`);
+ }
+ return out.join(" ");
+}
+async function runArticleAction(id,action){
+ try{
+   if(action==="approve-publish"){
+     await api("/studio/api/admin/articles/"+id+"/approve",{method:"POST",body:"{}"});
+     await api("/studio/api/admin/articles/"+id+"/publish",{method:"POST",body:"{}"});
+     toast("文章已核准並發布");
+   }else{
+     await api("/studio/api/admin/articles/"+id+"/"+action,{method:"POST",body:"{}"});
+     toast(({submit:"已送審",approve:"已核准",reject:"已退回草稿",publish:"已發布"})[action]||"狀態已更新");
+   }
+   await Promise.all([loadArticles(),loadPublish()]);
+ }catch(e){toast(e.message)}
+}
+function bindArticleActions(root=document){
+ root.querySelectorAll?.("[data-article-action]").forEach(b=>b.onclick=()=>runArticleAction(b.dataset.id,b.dataset.articleAction));
+}
+async function loadArticles(){try{const d=await api("/studio/api/admin/articles");$("#articlesTable").innerHTML=`<table class="table"><thead><tr><th>標題</th><th>分類</th><th>狀態</th><th>更新</th><th>操作</th></tr></thead><tbody>${(d.articles||[]).map(a=>`<tr><td>${a.title}</td><td>${a.category}</td><td><span class="badge ${a.status==="published"?"":"warn"}">${statusLabel(a.status)}</span></td><td>${(a.updated_at||"").slice(0,10)}</td><td><div class="studio-actions">${articleActionButtons(a)}</div></td></tr>`).join("")}</tbody></table>`;bindArticleActions($("#articlesTable"))}catch(e){toast(e.message)}}
+async function loadPublish(){try{const d=await api("/studio/api/admin/articles");const items=(d.articles||[]).filter(a=>["in_review","approved"].includes(a.status));$("#approvalSummary").innerHTML=items.length?items.map(a=>`<div class="status-row"><div><strong>${a.title}</strong><div class="meta" style="margin-top:4px">${statusLabel(a.status)} · ${a.category}</div></div><div class="studio-actions">${articleActionButtons(a)}</div></div>`).join(""):`<p>目前沒有待審或待發布文章。</p>`;bindArticleActions($("#approvalSummary"))}catch(e){toast(e.message)}}
 $("#newArticleBtn").onclick=()=>{$("#articleEditor").hidden=false};$("#cancelArticleBtn").onclick=()=>{$("#articleEditor").hidden=true};$("#reloadArticles").onclick=loadArticles;
 $("#saveArticleBtn").onclick=async()=>{try{await api("/studio/api/admin/articles",{method:"POST",body:JSON.stringify({title:$("#articleTitle").value,category:$("#articleCategory").value,excerpt:$("#articleExcerpt").value,body:$("#articleBody").value})});$("#articleEditor").hidden=true;toast("草稿已建立");loadArticles()}catch(e){toast(e.message)}};
 async function loadMedia(){try{const d=await api("/studio/api/admin/media");$("#mediaGrid").innerHTML=(d.media||[]).map(m=>`<div class="discover-card"><img src="${m.visibility==="public"?m.public_url:"/media/"+m.id}" alt=""><div class="meta">${m.source} · ${m.visibility}</div><h3>${m.filename}</h3></div>`).join("")}catch(e){toast(e.message)}}

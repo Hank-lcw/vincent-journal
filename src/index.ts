@@ -49,7 +49,12 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
     if(method==='GET' && p==='/api/admin/system/status'){
       const status=await systemIntegrationStatus(env);
       const emailDomain=await getResendDomainStatus(env).catch(e=>({configured:false,reason:e instanceof Error?e.message:String(e)}));
-      const db=await env.DB.prepare(`SELECT (SELECT COUNT(*) FROM articles) articles,(SELECT COUNT(*) FROM media_assets) media,(SELECT COUNT(*) FROM subscribers WHERE status='active') subscribers`).first<any>();
+      const db=await env.DB.prepare(`SELECT
+        (SELECT COUNT(*) FROM articles) articles_total,
+        (SELECT COUNT(*) FROM articles WHERE status='published') articles,
+        (SELECT COUNT(*) FROM media_assets) media,
+        (SELECT COUNT(*) FROM subscribers WHERE status='active') subscribers
+      `).first<any>();
       return json({user,cloudflare:{d1:true,r2_media:true,r2_backups:true,access:Boolean(env.TEAM_DOMAIN&&env.POLICY_AUD)},...status,email_domain:emailDomain,counts:db||{}});
     }
 

@@ -96,7 +96,7 @@ async function openArticleEditor(id=null){
     $('#articleFeatured').checked=Boolean(a?.featured);
     $('#articleExcerpt').value=a?.excerpt||'';
     $('#articleBody').value=a?.body||'';
-    $('#articleEditorMode').textContent=a?`正在編輯：${a.title}`:'建立新草稿';
+    $('#articleEditorMode').textContent=a?(`正在編輯：${a.title}`+(['in_review','approved','published'].includes(a.status)?' · 儲存修改後會回到草稿並需重新送審':'')):'建立新草稿';
     $('#saveArticleBtn').textContent=a?'儲存修改':'儲存草稿';
     $('#articleEditor').hidden=false;
     $('#articleEditor').scrollIntoView({behavior:'smooth',block:'start'});

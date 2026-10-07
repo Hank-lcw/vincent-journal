@@ -1,29 +1,159 @@
 <!doctype html>
-<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VINCENT STUDIO</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VINCENT STUDIO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Instrument+Serif&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css"><script defer src="studio.js"></script></head>
-<body class="studio-body"><div class="studio-shell">
-<aside class="studio-nav"><div class="studio-brand">VINCENT<span>STUDIO</span></div><div class="meta" style="margin-top:6px">內容編輯工作室</div>
-<nav class="studio-menu" id="studioMenu">
-<button class="active" data-view="dashboard">首頁總覽</button><button data-view="articles">文章管理</button><button data-view="publish">發布中心</button><button data-view="media">媒體工作室</button><button data-view="newsletter">電子報工作室</button><button data-view="social">社群發布工作室</button><button data-view="system">系統與權限</button></nav>
-<div style="margin-top:auto;padding-top:35px"><a href="/" target="_blank" class="mini-link">檢視網站前台 ↗</a></div></aside>
+<link rel="stylesheet" href="styles.css">
+<script defer src="studio.js"></script>
+</head>
+<body class="studio-body">
+<div class="studio-shell">
+<aside class="studio-nav">
+  <div class="studio-brand">VINCENT<span>STUDIO</span></div>
+  <div class="meta studio-subbrand">內容編輯工作室</div>
+  <nav class="studio-menu" id="studioMenu">
+    <button class="active" data-view="dashboard">首頁總覽</button>
+    <button data-view="articles">文章管理</button>
+    <button data-view="publish">發布中心</button>
+    <button data-view="media">媒體工作室</button>
+    <button data-view="newsletter">電子報工作室</button>
+    <button data-view="social">社群發布工作室</button>
+    <button data-view="system">系統與權限</button>
+  </nav>
+  <div class="studio-nav-foot"><a href="/" target="_blank" rel="noopener" class="mini-link">檢視網站前台 ↗</a></div>
+</aside>
+
 <main class="studio-main">
-<header class="studio-top"><div><div class="meta">VINCENT JOURNAL / VINCENT STUDIO</div><h1 id="viewTitle">首頁總覽</h1><p id="welcome">正在驗證管理員身分…</p></div><div class="studio-actions"><button id="refreshBtn">重新整理</button></div></header>
+<header class="studio-top">
+  <div><div class="meta">VINCENT JOURNAL / VINCENT STUDIO</div><h1 id="viewTitle">首頁總覽</h1><p id="welcome">正在驗證管理員身分…</p></div>
+  <div class="studio-actions"><button id="refreshBtn">重新整理</button></div>
+</header>
 
-<section class="view active" data-view="dashboard"><div class="studio-grid"><div class="metric"><span>已發布文章</span><b id="metricArticles">—</b></div><div class="metric"><span>媒體素材</span><b id="metricMedia">—</b></div><div class="metric"><span>電子報訂閱者</span><b id="metricSubscribers">—</b></div><div class="metric"><span>系統狀態</span><b id="metricSystem" style="font-size:24px">檢查中</b></div></div><div class="panel"><h2>今日工作</h2><p>從一篇值得寫的文章開始。完成內容後，再由發布中心決定它要出現在網站、電子報與哪些社群平台。</p><div class="studio-actions"><button class="btn primary" data-jump="articles">新增文章</button><button class="btn" data-jump="media">準備圖片</button><button class="btn" data-jump="social">建立社群內容</button></div></div></section>
+<section class="view active" data-view="dashboard">
+  <div class="studio-grid">
+    <div class="metric"><span>已發布文章</span><b id="metricArticles">—</b></div>
+    <div class="metric"><span>媒體素材</span><b id="metricMedia">—</b></div>
+    <div class="metric"><span>電子報訂閱者</span><b id="metricSubscribers">—</b></div>
+    <div class="metric"><span>系統狀態</span><b id="metricSystem" class="metric-status">檢查中</b></div>
+  </div>
+  <div class="panel"><h2>今日工作</h2><p>從一篇值得寫的文章開始。完成內容後，再由發布中心決定它要出現在網站、電子報與哪些社群平台。</p>
+    <div class="studio-actions"><button class="btn primary" data-jump="articles">新增文章</button><button class="btn" data-jump="media">準備圖片</button><button class="btn" data-jump="social">建立社群內容</button></div>
+  </div>
+</section>
 
-<section class="view" data-view="articles"><div class="panel"><h2>文章管理</h2><div class="studio-actions"><button class="btn primary" id="newArticleBtn">＋ 新增文章</button><button class="btn" id="reloadArticles">重新整理</button></div><div id="articleEditor" hidden style="margin-top:18px"><div class="form-grid"><div class="field"><label>文章標題</label><input id="articleTitle"></div><div class="field"><label>分類</label><select id="articleCategory"><option value="aesthetics">美學觀點</option><option value="healthy-aging">健康老化</option><option value="longevity">長壽科學</option></select></div><div class="field" style="grid-column:1/-1"><label>文章摘要</label><textarea id="articleExcerpt"></textarea></div><div class="field" style="grid-column:1/-1"><label>內文（HTML）</label><textarea id="articleBody" style="min-height:260px"></textarea></div></div><div class="studio-actions" style="margin-top:12px"><button class="btn primary" id="saveArticleBtn">儲存草稿</button><button class="btn" id="cancelArticleBtn">取消</button></div></div><div id="articlesTable" style="margin-top:18px"></div></div></section>
+<section class="view" data-view="articles">
+  <div class="panel">
+    <div class="panel-head"><div><h2>文章管理</h2><p>草稿、版本、封面素材與發布流程集中在這裡。</p></div><div class="studio-actions"><button class="btn primary" id="newArticleBtn">＋ 新增文章</button><button class="btn" id="reloadArticles">重新整理</button></div></div>
+    <div id="articleEditor" class="editor-card" hidden>
+      <div class="form-grid">
+        <div class="field"><label>文章標題</label><input id="articleTitle" maxlength="180"></div>
+        <div class="field"><label>網址 Slug</label><input id="articleSlug" placeholder="留白會自動產生"></div>
+        <div class="field"><label>分類</label><select id="articleCategory"><option value="aesthetics">美學觀點</option><option value="healthy-aging">健康老化</option><option value="longevity">長壽科學</option></select></div>
+        <div class="field"><label>閱讀時間（分鐘）</label><input id="articleReadTime" type="number" min="1" max="120" value="6"></div>
+        <div class="field field-wide"><label>副標題</label><input id="articleSubtitle" maxlength="300"></div>
+        <div class="field"><label>封面圖片</label><select id="articleCover"><option value="">尚未選擇</option></select></div>
+        <label class="checkbox-field"><input id="articleFeatured" type="checkbox"><span>設為精選文章</span></label>
+        <div class="field field-wide"><label>文章摘要</label><textarea id="articleExcerpt" maxlength="800"></textarea></div>
+        <div class="field field-wide"><label>內文（支援基本 HTML）</label><textarea id="articleBody" class="article-editor-body"></textarea></div>
+      </div>
+      <div class="studio-actions editor-actions"><button class="btn primary" id="saveArticleBtn">儲存草稿</button><button class="btn" id="cancelArticleBtn">取消</button><span class="form-note" id="articleEditorMode"></span></div>
+    </div>
+    <div class="table-wrap" id="articlesTable"></div>
+    <div id="revisionPanel" class="editor-card" hidden></div>
+  </div>
+</section>
 
-<section class="view" data-view="publish"><div class="panel"><h2>發布中心</h2><p>正式發布不是單一按鈕，而是一個審核流程。文章先送審，再由 Reviewer 核准與發布；電子報與社群貼文同樣保留人工審核。</p><div id="approvalSummary"></div></div></section>
+<section class="view" data-view="publish">
+  <div class="panel"><h2>發布中心</h2><p>待審與已核准文章會集中在這裡。Owner／Reviewer 可以直接核准並發布。</p><div id="approvalSummary"></div></div>
+</section>
 
-<section class="view" data-view="media"><div class="panel"><h2>媒體工作室</h2><p>圖片預設為私人素材。可自行上傳，或使用 AI 生成與修改；AI 修改永遠建立新版本，不覆蓋原圖。</p><div class="form-grid"><div class="field"><label>上傳圖片</label><input type="file" id="mediaFile" accept="image/jpeg,image/png,image/webp,image/avif"></div><div class="field"><label>替代文字</label><input id="mediaAlt" placeholder="描述圖片內容"></div></div><div class="studio-actions" style="margin-top:12px"><button class="btn primary" id="uploadMediaBtn">上傳素材</button></div><hr style="border:0;border-top:1px solid var(--line);margin:28px 0"><div class="field"><label>AI 圖片描述</label><textarea id="aiPrompt" placeholder="例如：自然光下的男性下顎線局部，暖白與低飽和色調，精品雜誌攝影感，不出現完整正臉。"></textarea></div><div class="studio-actions" style="margin-top:12px"><button class="btn primary" id="generateImageBtn">AI 生成圖片</button></div><div id="mediaGrid" class="discover-grid" style="margin-top:24px"></div></div></section>
+<section class="view" data-view="media">
+  <div class="panel">
+    <div class="panel-head"><div><h2>媒體工作室</h2><p>圖片預設私人保存。可自行上傳、AI 生成、AI 修改；修改永遠建立新版本。</p></div></div>
+    <div class="form-grid">
+      <div class="field"><label>上傳圖片</label><input type="file" id="mediaFile" accept="image/jpeg,image/png,image/webp,image/avif"></div>
+      <div class="field"><label>替代文字</label><input id="mediaAlt" placeholder="描述圖片內容"></div>
+    </div>
+    <div class="studio-actions editor-actions"><button class="btn primary" id="uploadMediaBtn">上傳素材</button></div>
+    <hr class="studio-rule">
+    <div class="form-grid">
+      <div class="field field-wide"><label>AI 圖片描述</label><textarea id="aiPrompt" placeholder="例如：自然光下的男性下顎線局部，暖白與低飽和色調，精品雜誌攝影感，不出現完整正臉。"></textarea></div>
+    </div>
+    <div class="studio-actions editor-actions"><button class="btn primary" id="generateImageBtn">AI 生成圖片</button></div>
+    <div id="aiEditPanel" class="editor-card" hidden>
+      <div class="meta" id="aiEditSource">尚未選擇圖片</div>
+      <div class="field"><label>修改指令</label><textarea id="aiEditPrompt" placeholder="例如：保留構圖與五官比例，只提升自然光質感與細節，避免塑膠肌。"></textarea></div>
+      <div class="studio-actions editor-actions"><button class="btn primary" id="editImageBtn">建立修改版本</button><button class="btn" id="cancelEditImageBtn">取消</button></div>
+    </div>
+    <div id="mediaGrid" class="media-grid"></div>
+  </div>
+</section>
 
-<section class="view" data-view="newsletter"><div class="panel"><h2>電子報工作室</h2><p>訂閱採 Double Opt-in。只有完成信箱確認且未退訂／未被抑制的讀者，才會進入正式寄送名單。</p><div class="studio-grid"><div class="metric"><span>已驗證訂閱者</span><b id="activeSubs">—</b></div><div class="metric"><span>待驗證</span><b id="pendingSubs">—</b></div><div class="metric"><span>已退訂</span><b id="unsubSubs">—</b></div><div class="metric"><span>停止寄送</span><b id="suppressedSubs">—</b></div></div><div id="newsletterTable" style="margin-top:20px"></div></div></section>
+<section class="view" data-view="newsletter">
+  <div class="panel">
+    <h2>電子報工作室</h2><p>訂閱採 Double Opt-in。只有完成信箱確認且未退訂／未被抑制的讀者才會進入寄送名單。</p>
+    <div class="studio-grid">
+      <div class="metric"><span>已驗證訂閱者</span><b id="activeSubs">—</b></div>
+      <div class="metric"><span>待驗證</span><b id="pendingSubs">—</b></div>
+      <div class="metric"><span>已退訂</span><b id="unsubSubs">—</b></div>
+      <div class="metric"><span>停止寄送</span><b id="suppressedSubs">—</b></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><div><h2>建立新一期</h2><p>寄出前一定保留人工審核。</p></div></div>
+    <div class="form-grid">
+      <div class="field field-wide"><label>主旨</label><input id="campaignSubject" maxlength="200"></div>
+      <div class="field field-wide"><label>預覽文字</label><input id="campaignPreview" maxlength="300"></div>
+      <div class="field field-wide"><label>HTML 內容</label><textarea id="campaignHtml" class="article-editor-body"></textarea></div>
+      <div class="field field-wide"><label>純文字版本</label><textarea id="campaignText"></textarea></div>
+    </div>
+    <div class="studio-actions editor-actions"><button class="btn" id="saveCampaignDraftBtn">儲存草稿</button><button class="btn primary" id="submitCampaignBtn">儲存並送審</button></div>
+    <div id="campaignList"></div>
+  </div>
+  <div class="panel"><h2>訂閱者</h2><div class="table-wrap" id="newsletterTable"></div></div>
+</section>
 
-<section class="view" data-view="social"><div class="panel"><h2>社群發布工作室</h2><p>Instagram、Facebook、Threads、小紅書各自使用不同內容邏輯；不把同一份文字複製四次。Canva Brand Template 串接後，可把文章標題、圖片與品牌欄位自動填版。</p><div id="socialStatus"></div></div></section>
+<section class="view" data-view="social">
+  <div class="panel"><h2>社群發布工作室</h2><p>Instagram、Facebook、Threads、小紅書各自使用不同內容邏輯；不把同一份文字複製四次。</p><div id="socialStatus"></div></div>
+  <div class="panel">
+    <h2>建立社群草稿</h2>
+    <div class="form-grid">
+      <div class="field"><label>平台</label><select id="socialPlatform"><option value="instagram">Instagram</option><option value="facebook">Facebook</option><option value="threads">Threads</option><option value="xiaohongshu">小紅書</option></select></div>
+      <div class="field"><label>來源文章</label><select id="socialArticle"><option value="">不綁定文章</option></select></div>
+      <div class="field field-wide"><label>標題／內部辨識名稱</label><input id="socialTitle"></div>
+      <div class="field field-wide"><label>貼文文字</label><textarea id="socialCopy"></textarea></div>
+      <div class="field field-wide"><label>圖片素材（可多選）</label><select id="socialMedia" multiple class="multi-select"></select></div>
+    </div>
+    <div class="studio-actions editor-actions"><button class="btn" id="saveSocialDraftBtn">儲存草稿</button><button class="btn primary" id="submitSocialDraftBtn">儲存並送審</button></div>
+    <div id="socialDrafts"></div>
+  </div>
+</section>
 
-<section class="view" data-view="system"><div class="panel"><h2>系統與權限</h2><p>這裡只顯示整合狀態，不顯示任何 API key 或 OAuth access token。</p><div id="systemRows"></div><div class="studio-actions" style="margin-top:18px"><button class="btn" id="backupBtn">立即建立備份</button></div></div><div class="panel"><h2>管理員</h2><div id="staffTable"></div></div></section>
+<section class="view" data-view="system">
+  <div class="panel">
+    <h2>系統與權限</h2><p>只顯示整合狀態，不顯示任何 API key 或 OAuth access token。</p>
+    <div id="systemRows"></div>
+    <div class="studio-actions editor-actions"><button class="btn" id="backupBtn">立即建立備份</button></div>
+    <div id="backupList"></div>
+  </div>
+  <div class="panel">
+    <h2>管理員</h2>
+    <div class="form-grid" id="staffForm">
+      <div class="field"><label>Email</label><input id="staffEmail" type="email"></div>
+      <div class="field"><label>顯示名稱</label><input id="staffName"></div>
+      <div class="field"><label>角色</label><select id="staffRole"><option value="editor">Editor</option><option value="reviewer">Reviewer</option><option value="admin">Admin</option><option value="owner">Owner</option></select></div>
+      <div class="field field-action"><button class="btn primary" id="addStaffBtn">新增／更新管理員</button></div>
+    </div>
+    <div class="table-wrap" id="staffTable"></div>
+  </div>
+</section>
 
-<div id="toast" style="position:fixed;right:24px;bottom:24px;background:#242522;color:white;padding:12px 16px;border-radius:6px;display:none;max-width:360px"></div>
-</main></div></body></html>
+<div id="toast" class="studio-toast" role="status"></div>
+</main>
+</div>
+</body>
+</html>

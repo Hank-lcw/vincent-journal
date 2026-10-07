@@ -17,7 +17,7 @@ async function maybeUser(request:Request,env:Env):Promise<AuthUser|null>{ if(!re
 function safeRedirect(base:string,path:string):string{ try{const u=new URL(path,base),b=new URL(base); return u.origin===b.origin?u.toString():new URL('/studio.html',base).toString();}catch{return new URL('/studio.html',base).toString();} }
 
 async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Response>{
-  const url=new URL(request.url), p=url.pathname, seg=parts(p), method=request.method.toUpperCase();
+  const url=new URL(request.url); let p=url.pathname; if(p.startsWith('/studio/api/admin/')) p='/api/admin/'+p.slice('/studio/api/admin/'.length); const seg=parts(p), method=request.method.toUpperCase();
 
   if(method==='GET' && p==='/api/public/articles') return json({articles:await listPublicArticles(env,url)});
   if(method==='GET' && seg[0]==='api' && seg[1]==='public' && seg[2]==='articles' && seg[3]) return json({article:await getPublicArticle(env,seg[3])});

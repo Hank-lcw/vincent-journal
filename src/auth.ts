@@ -1,6 +1,6 @@
 import type { Env, AuthUser, Role } from './types';
 import { HttpError } from './http';
-import { nowIso, uuid } from './utils';
+import { nowIso, uuid, toArrayBuffer } from './utils';
 
 const roleWeight: Record<Role, number> = { editor: 10, reviewer: 20, admin: 30, owner: 40 };
 const jwksCache = new Map<string, { expires:number; keys:any[] }>();
@@ -33,7 +33,7 @@ async function verifyAccessJwt(token:string,env:Env):Promise<any>{
   else if(header.alg==='ES256') { algorithm={name:'ECDSA',namedCurve:'P-256'} as EcKeyImportParams; verifyAlgo={name:'ECDSA',hash:'SHA-256'} as EcdsaParams; }
   else throw new Error(`不支援的 JWT 演算法：${header.alg}`);
   const key=await crypto.subtle.importKey('jwk',jwk,algorithm,false,['verify']);
-  const ok=await crypto.subtle.verify(verifyAlgo,key,decodeB64UrlBytes(chunks[2]),new TextEncoder().encode(`${chunks[0]}.${chunks[1]}`));
+  const ok=await crypto.subtle.verify(verifyAlgo,key,toArrayBuffer(decodeB64UrlBytes(chunks[2])),new TextEncoder().encode(`${chunks[0]}.${chunks[1]}`));
   if(!ok) throw new Error('JWT 簽章無效');
   const now=Math.floor(Date.now()/1000); if(payload.exp && Number(payload.exp)<now-30) throw new Error('JWT 已過期'); if(payload.nbf && Number(payload.nbf)>now+30) throw new Error('JWT 尚未生效');
   const issuer=env.TEAM_DOMAIN.replace(/\/$/,''); if(payload.iss!==issuer) throw new Error('JWT issuer 不符');

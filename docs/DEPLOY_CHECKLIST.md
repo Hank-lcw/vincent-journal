@@ -101,6 +101,15 @@ Worker 會再次驗證 `Cf-Access-Jwt-Assertion`，不是只依賴前方 Access 
 - [x] Auto-provisioned production D1: `vincent-journal-runtime`
 - [x] Database ID pinned: `50dc4b25-df3a-4cfd-b496-a037ac65a999`
 - [ ] Cloudflare Build deploy command changed to `npm run deploy:cloudflare`
-- [ ] Confirm migration creates the production tables
+- [x] Confirm migration creates the production tables (verified via sqlite_master; table_count = 19)
 
 - [ ] Fresh build after deploy-command change (do not rely on retrying an older build snapshot)
+
+## Next: Cloudflare Access
+- [ ] Remove any production-wide Access protection from the public Worker URL
+- [ ] Keep Preview URLs protected
+- [ ] Create path-scoped Access protection for `/studio*`
+- [ ] Create path-scoped Access protection for `/api/admin/*`
+- [ ] Allow only `andyhank1234567890@gmail.com`
+- [ ] Record Team Domain and Application AUD in `wrangler.jsonc`
+- [ ] Verify first login bootstraps owner role

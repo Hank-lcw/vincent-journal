@@ -184,10 +184,10 @@ function renderCampaigns(list){
 }
 async function loadNewsletter(){
   try{
-    const [subs,camps]=await Promise.all([api('/studio/api/admin/newsletter/subscribers'),api('/studio/api/admin/newsletter/campaigns')]);
+    const [subs,camps]=await Promise.all([canAdmin()?api('/studio/api/admin/newsletter/subscribers'):Promise.resolve({subscribers:[]}),api('/studio/api/admin/newsletter/campaigns')]);
     const s=subs.subscribers||[];
     for(const st of ['active','pending','unsubscribed','suppressed']){const id={active:'activeSubs',pending:'pendingSubs',unsubscribed:'unsubSubs',suppressed:'suppressedSubs'}[st];$('#'+id).textContent=s.filter(x=>x.status===st).length}
-    $('#newsletterTable').innerHTML=`<table class="table"><thead><tr><th>Email</th><th>狀態</th><th>來源</th><th>加入時間</th></tr></thead><tbody>${s.slice(0,200).map(x=>`<tr><td>${e(x.email)}</td><td>${e(statusLabel(x.status))}</td><td>${e(x.source)}</td><td>${e((x.created_at||'').slice(0,16))}</td></tr>`).join('')}</tbody></table>`;
+    $('#newsletterTable').innerHTML=canAdmin()?`<table class="table"><thead><tr><th>Email</th><th>狀態</th><th>來源</th><th>加入時間</th></tr></thead><tbody>${s.slice(0,200).map(x=>`<tr><td>${e(x.email)}</td><td>${e(statusLabel(x.status))}</td><td>${e(x.source)}</td><td>${e((x.created_at||'').slice(0,16))}</td></tr>`).join('')}</tbody></table>`:'<p class="empty-state">訂閱者個資僅 Owner／Admin 可查看。</p>';
     renderCampaigns(camps.campaigns||[]);
   }catch(err){toast(err.message)}
 }

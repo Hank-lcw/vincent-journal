@@ -153,3 +153,16 @@ https://vincent-journal.andyhank1234567890.workers.dev
 
 - `vincent-journal-media` — 已建立，Private，Automatic / Asia Pacific，Standard
 - `vincent-journal-backups` — 已建立，Private，Automatic / Asia Pacific，Standard
+
+
+## 2026-10-07 D1 10181 workaround
+
+Cloudflare Workers Builds repeatedly returned error 10181 for the manually-created D1 database even though the UUID and account matched and the token had D1 access. This matches an open Cloudflare Workers SDK issue reported in August 2026.
+
+Because the database was still empty, the production config now uses Wrangler automatic D1 resource provisioning instead:
+
+- Binding: `DB`
+- Database name: `vincent-journal-runtime`
+- No hard-coded `database_id`
+
+Wrangler 4.45+ can create the D1 resource during deploy and keep the binding linked on future deploys. The original manually-created empty `vincent-journal` database is no longer the runtime target and can be retained temporarily until production is verified.

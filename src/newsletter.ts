@@ -137,7 +137,8 @@ export async function handleResendWebhook(env: Env, request: Request): Promise<{
   return {ok:true};
 }
 
-export async function listSubscribers(env: Env): Promise<any[]> {
+export async function listSubscribers(env: Env, user: AuthUser): Promise<any[]> {
+  requireRole(user,'admin');
   const {results}=await env.DB.prepare(`SELECT id,email,status,verified_at,unsubscribed_at,source,consent_at,created_at,updated_at FROM subscribers ORDER BY created_at DESC LIMIT 1000`).all();
   return results||[];
 }

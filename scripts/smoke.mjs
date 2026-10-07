@@ -1,5 +1,4 @@
-const base=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,'');
-if(!base) throw new Error('PUBLIC_BASE_URL is required');
+const base=(process.env.PUBLIC_BASE_URL||'https://vincent-journal.andyhank1234567890.workers.dev').replace(/\/$/,'');
 for(const [path,status,text] of [
   ['/',200,'VINCENT JOURNAL'],
   ['/discover.html',200,'DISCOVER'],

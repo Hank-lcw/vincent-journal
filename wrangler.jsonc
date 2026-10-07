@@ -23,8 +23,8 @@
   ],
   "vars": {
     "PUBLIC_BASE_URL": "https://vincent-journal.andyhank1234567890.workers.dev",
-    "TEAM_DOMAIN": "https://REPLACE_WITH_TEAM.cloudflareaccess.com",
-    "POLICY_AUD": "REPLACE_WITH_ACCESS_AUD",
+    "TEAM_DOMAIN": "https://andyhank1234567890.cloudflareaccess.com",
+    "POLICY_AUD": "7dd196f9be1362f0dcd1b39f50ab859d2545c18b94ecbea156da4981df16b65c",
     "BOOTSTRAP_ADMIN_EMAIL": "andyhank1234567890@gmail.com",
     "MAIL_FROM": "VINCENT JOURNAL <journal@YOUR_VERIFIED_MAIL_DOMAIN>",
     "RESEND_SEGMENT_ID": "REPLACE_WITH_RESEND_SEGMENT_ID",

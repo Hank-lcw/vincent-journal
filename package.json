@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "db:migrate:local": "wrangler d1 migrations apply vincent-journal --local",
     "db:migrate:remote": "wrangler d1 migrations apply vincent-journal --remote",
-    "cf:types": "wrangler types"
+    "cf:types": "wrangler types",
+    "deploy:cloudflare": "wrangler deploy && wrangler d1 migrations apply DB --remote"
   },
   "dependencies": {},
   "devDependencies": {

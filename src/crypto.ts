@@ -1,12 +1,12 @@
 import type { Env } from './types';
 import { HttpError } from './http';
-import { base64, decodeBase64 } from './utils';
+import { base64, decodeBase64, toArrayBuffer } from './utils';
 
 async function tokenKey(env: Env): Promise<CryptoKey> {
   if (!env.TOKEN_ENCRYPTION_KEY_B64) throw new HttpError(503, 'TOKEN_ENCRYPTION_KEY_B64 尚未設定');
   const raw = decodeBase64(env.TOKEN_ENCRYPTION_KEY_B64);
   if (raw.byteLength !== 32) throw new HttpError(503, 'TOKEN_ENCRYPTION_KEY_B64 必須是 32 bytes 的 Base64 金鑰');
-  return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt','decrypt']);
+  return crypto.subtle.importKey('raw', toArrayBuffer(raw), 'AES-GCM', false, ['encrypt','decrypt']);
 }
 
 export async function encryptSecret(env: Env, plaintext: string): Promise<{ciphertext:string; nonce:string}> {
@@ -20,7 +20,7 @@ export async function decryptSecret(env: Env, ciphertext: string | null, nonce: 
   if (!ciphertext || !nonce) return null;
   const key = await tokenKey(env);
   try {
-    const out = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: decodeBase64(nonce) }, key, decodeBase64(ciphertext));
+    const out = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: toArrayBuffer(decodeBase64(nonce)) }, key, toArrayBuffer(decodeBase64(ciphertext)));
     return new TextDecoder().decode(out);
   } catch {
     throw new HttpError(500, '整合權杖解密失敗');

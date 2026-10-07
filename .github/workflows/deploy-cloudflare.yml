@@ -33,6 +33,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Repository QA
+        run: npm run qa
+
       - name: Wrangler dry run
         run: npx wrangler deploy --dry-run
 
@@ -54,3 +57,9 @@ jobs:
       - name: Apply D1 migrations
         if: steps.cloudflare.outputs.configured == 'true'
         run: npx wrangler d1 migrations apply DB --remote
+
+      - name: Production smoke test
+        if: steps.cloudflare.outputs.configured == 'true'
+        env:
+          PUBLIC_BASE_URL: https://vincent-journal.andyhank1234567890.workers.dev
+        run: npm run smoke

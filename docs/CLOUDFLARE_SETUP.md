@@ -45,8 +45,8 @@ npx wrangler d1 migrations apply vincent-journal --remote
 
 在 `wrangler.jsonc` 修改：
 
-- `PUBLIC_BASE_URL`：正式公開網站，例如 `https://journal.example.com`
-- `BOOTSTRAP_ADMIN_EMAIL`：第一位 owner 的登入 email
+- `PUBLIC_BASE_URL`：第一階段使用 Workers.dev，格式為 `https://vincent-journal.<你的 Workers 子網域>.workers.dev`
+- `BOOTSTRAP_ADMIN_EMAIL`：已設定為 `andyhank1234567890@gmail.com`
 - `MAIL_FROM`
 - `RESEND_SEGMENT_ID`
 - 各 OAuth redirect URI
@@ -131,3 +131,15 @@ D1 Time Travel 是短期 point-in-time recovery 的第一層。Worker 另外每�
 安全考量：長期 JSON 備份**不包含 OAuth access/refresh token 密文與 nonce**；第三方帳號在完整災難復原後可重新授權。
 
 可在後台「系統與權限」手動建立額外備份。
+
+## 本專案目前選定的第一階段網址
+
+先使用 Cloudflare Workers.dev，不先購買正式網域。
+
+預期格式：
+
+```text
+https://vincent-journal.<YOUR_WORKERS_SUBDOMAIN>.workers.dev
+```
+
+真正的 Workers 子網域要在 Cloudflare 帳號建立第一個 Worker / 啟用 workers.dev 後才能確定，因此 repository 目前保留 `YOUR_WORKERS_SUBDOMAIN`；拿到後只需替換一處，再同步 OAuth redirect URI。

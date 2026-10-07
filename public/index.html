@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VINCENT JOURNAL｜美學、健康老化與長壽</title>
+<meta name="description" content="VINCENT JOURNAL — 關於美學、健康老化與時間的獨立觀察。">
+<meta name="theme-color" content="#f7f5f0">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Noto+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script defer src="data.js"></script><script defer src="app.js"></script>
+</head>
+<body data-page="home">
+<header class="site-header shell">
+ <div class="masthead-meta"><span>TAIPEI, TAIWAN <i>·</i> AN INDEPENDENT JOURNAL</span><span>VOL. 001 <i>·</i> 2026</span><button class="text-icon" id="searchOpen" aria-label="搜尋文章">⌕ <span>搜尋</span></button></div>
+ <a class="wordmark" href="index.html" aria-label="VINCENT JOURNAL 首頁">VINCENT <span>JOURNAL</span></a>
+ <p class="brand-subtitle">AESTHETICS <b>·</b> HEALTHY AGING <b>·</b> LONGEVITY</p>
+ <nav class="site-nav" aria-label="主要導覽"><a href="discover.html">DISCOVER</a><a href="discover.html?category=美學觀點">PERSPECTIVES</a><a href="discover.html?category=健康老化">HEALTHY AGING</a><a href="discover.html?category=長壽科學">LONGEVITY</a><a href="article.html?id=about">ABOUT</a></nav>
+</header>
+<main class="shell">
+ <section class="hero" aria-label="本期封面故事" id="hero"></section>
+ <section class="editorial-section" id="selection"><div class="section-header"><h2>Editor's Selection</h2><div class="hairline"></div><p>精選值得閱讀的觀點、研究與思考</p></div><div class="selection-grid" id="selectionGrid"></div></section>
+ <section class="editorial-section journal-section" id="journal"><div class="section-header"><h2>The Journal</h2><div class="hairline"></div><a class="mini-link" href="discover.html">瀏覽全部文章 <span>↗</span></a></div><div class="filter-tabs" id="filterTabs"><button class="is-active" data-filter="全部">ALL</button><button data-filter="美學觀點">AESTHETICS</button><button data-filter="健康老化">HEALTHY AGING</button><button data-filter="長壽科學">LONGEVITY</button></div><div class="article-grid" id="articleGrid"></div><div class="empty-note" id="emptyArticles" hidden>目前沒有符合條件的文章。</div></section>
+ </main>
+ <section class="about-strip" id="about"><div class="about-photo"><img src="assets/vincent-editorial.webp" alt="自然光下的人物輪廓局部特寫"></div><div class="about-copy"><small>FROM THE EDITOR</small><h2>A Note from Vincent</h2><p>我相信，美學不只是改變外貌的技術，也是一種理解比例、結構與個體差異的方式。</p><p>這裡記錄我對醫學、美學與健康老化的思考，以及在成為醫師的過程中，不斷學習與探索的觀察。</p><a href="article.html?id=about" class="outline-cta">認識 Vincent <span>↗</span></a></div><div class="about-quote"><img src="assets/cover-botanical.webp" alt="自然光下的乾燥植物局部"><blockquote>“A deeper understanding of ourselves leads to a kinder way of aging.”</blockquote></div></section>
+ <section class="newsletter-strip"><div><small>VINCENT LETTERS</small><h2>A LITTLE PERSPECTIVE, DELIVERED.</h2><p>不定期分享關於美學、健康老化與長壽的觀察。</p></div><form id="subscribeForm" class="newsletter-form"><label class="sr-only" for="subscriberEmail">電子郵件地址</label><div class="newsletter-inputrow"><input type="email" id="subscriberEmail" placeholder="您的電子郵件地址" required autocomplete="email"><button type="submit">訂閱電子報 <span>↗</span></button></div><label class="consent"><input type="checkbox" id="subscribeConsent" required><span>我同意未來接收 VINCENT JOURNAL 電子報，並可隨時退訂。</span></label><p id="subscribeNotice" class="form-note" role="status">送出後會先寄一封確認信；完成確認後才會加入寄送名單。</p></form></section>
+ <footer class="site-footer"><a class="footer-wordmark" href="index.html">VINCENT JOURNAL</a><span>AESTHETICS · HEALTHY AGING · LONGEVITY</span><span>© 2026 VINCENT JOURNAL <span class="footer-prototype">· 預覽展示版</span></span><a href="issue.html">THE ARCHIVE ↗</a></footer>
+ <dialog id="searchDialog" class="search-dialog"><form method="dialog"><div class="search-dialog-head"><label for="searchField">尋找一篇值得閱讀的文章</label><button aria-label="關閉搜尋">✕</button></div><input id="searchField" type="search" placeholder="輸入關鍵字、主題或標題…" autocomplete="off"><div id="searchResults"></div></form></dialog>
+</body></html>

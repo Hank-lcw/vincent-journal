@@ -33,6 +33,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Wrangler dry run
+        run: npx wrangler deploy --dry-run
+
       - name: Check Cloudflare deploy configuration
         id: cloudflare
         shell: bash

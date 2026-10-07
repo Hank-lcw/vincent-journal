@@ -12,10 +12,10 @@
 GitHub Actions 已加保護：在 Cloudflare Secrets 尚未設定時，deploy job 會跳過，不會因初始 commit 持續失敗。
 
 ## 1. Cloudflare resources
-- [ ] 建立 D1：`vincent-journal`
-- [ ] 建立 R2：`vincent-journal-media`
-- [ ] 建立 R2：`vincent-journal-backups`
-- [ ] 把 D1 database ID 填入 `wrangler.jsonc`
+- [x] 建立 D1：`vincent-journal`
+- [x] 建立 R2：`vincent-journal-media`
+- [x] 建立 R2：`vincent-journal-backups`
+- [x] 把 D1 database ID 填入 `wrangler.jsonc`
 - [ ] 決定正式網域，例如 `journal.<your-domain>`
 - [ ] 替換 `PUBLIC_BASE_URL`、OAuth redirect URI、`MAIL_FROM`
 

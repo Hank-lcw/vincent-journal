@@ -12,6 +12,71 @@ export async function listSocialDrafts(env:Env,user:AuthUser):Promise<any[]> {
   const {results}=await env.DB.prepare(`SELECT s.*,a.title article_title FROM social_drafts s LEFT JOIN articles a ON a.id=s.article_id ORDER BY s.updated_at DESC LIMIT 500`).all<any>();
   return (results||[]).map((x:any)=>({...x,media_ids:safeJson(x.media_ids_json,[])}));
 }
+
+function responseText(data:any):string{
+  if(typeof data?.output_text==='string' && data.output_text.trim()) return data.output_text.trim();
+  const texts:string[]=[];
+  for(const item of Array.isArray(data?.output)?data.output:[]){
+    for(const part of Array.isArray(item?.content)?item.content:[]){
+      if(typeof part?.text==='string') texts.push(part.text);
+    }
+  }
+  return texts.join('\n').trim();
+}
+function cleanJsonText(text:string):string{
+  return text.replace(/^\s*```(?:json)?\s*/i,'').replace(/\s*```\s*$/,'').trim();
+}
+export async function generateSocialCopy(env:Env,user:AuthUser,input:any):Promise<any>{
+  requireRole(user,'editor');
+  if(!env.OPENAI_API_KEY) throw new HttpError(503,'OPENAI_API_KEY 尚未設定');
+  const platform=String(input.platform||''); if(!platforms.has(platform)) throw new HttpError(400,'不支援的社群平台');
+  const articleId=String(input.article_id||'').trim();
+  let article:any=null;
+  if(articleId) article=await env.DB.prepare(`SELECT title,subtitle,excerpt,body,category FROM articles WHERE id=?`).bind(articleId).first<any>();
+  const title=String(article?.title||input.title||'').trim().slice(0,250);
+  const excerpt=String(article?.excerpt||input.excerpt||'').trim().slice(0,1200);
+  const body=String(article?.body||input.body||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,6500);
+  if(!title && !excerpt && !body) throw new HttpError(400,'請先選擇來源文章或提供內容');
+  const guides:Record<string,string>={
+    instagram:'適合 Instagram：開頭一到兩行要能讓人停下來；段落短、留白多；以單一觀點為核心。結尾可以自然邀請閱讀，但不要催促。可附少量精準 hashtag。視覺建議可規劃成精品雜誌感單圖或輪播。',
+    facebook:'適合 Facebook：可以比 Instagram 更完整地交代脈絡與判斷過程；重視可讀性與分享價值。避免大量 hashtag；若提到完整文章，用柔和的延伸閱讀語氣。',
+    threads:'適合 Threads：像一個有專業背景的人在分享剛想到、但已經想清楚的觀點。短、自然、有一個值得回應的觀察；不要做成摘要報告，也不要堆 hashtag。',
+    xiaohongshu:'適合小紅書：使用自然的簡體中文；標題精煉但不誇張；正文像高質感知識筆記，分段清楚、可收藏，但避免「必看、逆天、封神」等低質感流量詞。可附少量主題標籤。'
+  };
+  const instructions=`你是 VINCENT JOURNAL 的資深內容編輯。品牌主題是 AESTHETICS · HEALTHY AGING · LONGEVITY。
+寫作原則：
+1. 文字要有人味、克制、專業、穩重，不要有制式 AI 腔。
+2. 不硬銷、不製造焦慮、不暗示「做了就會變更好的人」。
+3. 高端、精品、可信任，但不是奢華形容詞堆砌。
+4. 醫療／醫美內容避免保證療效、診斷個人、誇大安全性或效果。
+5. 不要為了像人而故意口語失焦；保留明確觀點。
+6. 少用「不是…而是…」「真正的…」「其實…」等常見 AI 套句，不要連續排比。
+${guides[platform]}
+只輸出合法 JSON，不要 markdown，格式：
+{"title":"平台貼文標題或內部標題","copy":"可直接發布的文字","visual_brief":"一句到三句視覺／輪播建議","hashtags":["標籤1","標籤2"]}
+hashtags 可為空陣列；copy 若需要 hashtag，請把適量標籤自然附在文末。`;
+  const source=`來源文章：
+標題：${title}
+分類：${String(article?.category||input.category||'')}
+摘要：${excerpt}
+內文節錄：${body}`;
+  const res=await fetch('https://api.openai.com/v1/responses',{
+    method:'POST',
+    headers:{authorization:`Bearer ${env.OPENAI_API_KEY}`,'content-type':'application/json'},
+    body:JSON.stringify({model:'gpt-6-luna',instructions,input:source,max_output_tokens:1400})
+  });
+  const data:any=await res.json().catch(()=>({}));
+  if(!res.ok) throw new HttpError(502,`AI 文字生成失敗：${data?.error?.message||res.status}`);
+  const raw=responseText(data); if(!raw) throw new HttpError(502,'AI 沒有回傳文字');
+  let out:any; try{out=JSON.parse(cleanJsonText(raw));}catch{out={title:title||'社群貼文',copy:raw,visual_brief:'',hashtags:[]};}
+  return {
+    title:String(out?.title||title||'社群貼文').slice(0,250),
+    copy:String(out?.copy||'').slice(0,12_000),
+    visual_brief:String(out?.visual_brief||'').slice(0,1200),
+    hashtags:Array.isArray(out?.hashtags)?out.hashtags.map((x:any)=>String(x).slice(0,80)).slice(0,10):[]
+  };
+}
+
 export async function createSocialDraft(env:Env,request:Request,user:AuthUser,input:any):Promise<any>{
   requireRole(user,'editor');
   const platform=String(input.platform||''); if(!platforms.has(platform)) throw new HttpError(400,'不支援的社群平台');

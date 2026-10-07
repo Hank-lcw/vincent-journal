@@ -143,3 +143,8 @@ https://vincent-journal.andyhank1234567890.workers.dev
 ```
 
 真正的 Workers 子網域要在 Cloudflare 帳號建立第一個 Worker / 啟用 workers.dev 後才能確定，因此 repository 目前保留 `andyhank1234567890`；拿到後只需替換一處，再同步 OAuth redirect URI。
+
+## 已建立的 D1
+
+- Database name: `vincent-journal`
+- Database ID: `f0254d4a-c7ef-4362-bedd-5417f25ba779`

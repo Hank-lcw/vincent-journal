@@ -45,6 +45,9 @@ export async function serveMedia(env: Env, request: Request, id: string, user: A
   headers.set('etag', object.httpEtag);
   headers.set('x-content-type-options','nosniff');
   headers.set('cache-control', asset.visibility === 'public' ? 'public,max-age=31536000,immutable' : 'private,no-store');
+  const inm=request.headers.get('if-none-match');
+  if(inm && inm.split(',').map(x=>x.trim()).includes(object.httpEtag)) return new Response(null,{status:304,headers});
+  if(request.method.toUpperCase()==='HEAD') return new Response(null,{status:200,headers});
   return new Response(object.body, { headers });
 }
 

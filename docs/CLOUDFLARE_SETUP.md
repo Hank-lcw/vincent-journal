@@ -139,7 +139,7 @@ D1 Time Travel 是短期 point-in-time recovery 的第一層。Worker 另外每�
 預期格式：
 
 ```text
-https://vincent-journal.<YOUR_WORKERS_SUBDOMAIN>.workers.dev
+https://vincent-journal.andyhank1234567890.workers.dev
 ```
 
-真正的 Workers 子網域要在 Cloudflare 帳號建立第一個 Worker / 啟用 workers.dev 後才能確定，因此 repository 目前保留 `YOUR_WORKERS_SUBDOMAIN`；拿到後只需替換一處，再同步 OAuth redirect URI。
+真正的 Workers 子網域要在 Cloudflare 帳號建立第一個 Worker / 啟用 workers.dev 後才能確定，因此 repository 目前保留 `andyhank1234567890`；拿到後只需替換一處，再同步 OAuth redirect URI。

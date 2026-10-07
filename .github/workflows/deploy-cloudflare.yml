@@ -47,10 +47,10 @@ jobs:
             echo "Cloudflare secrets are not configured yet; typecheck passed and deploy steps will be skipped."
           fi
 
-      - name: Apply D1 migrations
-        if: steps.cloudflare.outputs.configured == 'true'
-        run: npx wrangler d1 migrations apply vincent-journal --remote
-
       - name: Deploy Worker + Static Assets
         if: steps.cloudflare.outputs.configured == 'true'
         run: npx wrangler deploy
+
+      - name: Apply D1 migrations
+        if: steps.cloudflare.outputs.configured == 'true'
+        run: npx wrangler d1 migrations apply DB --remote

@@ -1,0 +1,126 @@
+import type { Env, AuthUser } from './types';
+import { HttpError, json, readJson, securityHeaders } from './http';
+import { requireUser } from './auth';
+import { listStaff, upsertStaff, updateStaff } from './staff';
+import { listAdminArticles, listPublicArticles, getPublicArticle, createArticle, updateArticle, transitionArticle, listArticleRevisions, restoreArticleRevision } from './articles';
+import { listMedia, uploadMedia, serveMedia, generateImage, editImage, setMediaVisibility } from './media';
+import { subscribe, verifySubscription, unsubscribe, handleResendWebhook, listSubscribers, listNewsletterCampaigns, createNewsletterCampaign, approveNewsletter, sendNewsletter, getResendDomainStatus } from './newsletter';
+import { listIntegrations, startOAuth, handleOAuthCallback, disconnectIntegration, systemIntegrationStatus } from './integrations';
+import { listBrandTemplates, brandTemplateDataset, createAutofill, getAutofillJob, attachCanvaDesign, uploadPublicAssetToCanva, getCanvaAssetUploadJob } from './canva';
+import { listSocialDrafts, createSocialDraft, updateSocialDraft, submitSocialDraft, approveSocialDraft, publishSocialDraft } from './social';
+import { listBackups, manualBackup, createBackup } from './backup';
+import { runDueJobs } from './jobs';
+
+function parts(pathname:string):string[]{ return pathname.split('/').filter(Boolean).map(decodeURIComponent); }
+function isStudioPath(path:string):boolean { return path==='/studio' || path==='/studio/' || path==='/studio.html' || path.startsWith('/api/admin/'); }
+async function maybeUser(request:Request,env:Env):Promise<AuthUser|null>{ if(!request.headers.get('Cf-Access-Jwt-Assertion')) return null; try{return await requireUser(request,env);}catch{return null;} }
+function safeRedirect(base:string,path:string):string{ try{const u=new URL(path,base),b=new URL(base); return u.origin===b.origin?u.toString():new URL('/studio.html',base).toString();}catch{return new URL('/studio.html',base).toString();} }
+
+async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Response>{
+  const url=new URL(request.url), p=url.pathname, seg=parts(p), method=request.method.toUpperCase();
+
+  if(method==='GET' && p==='/api/public/articles') return json({articles:await listPublicArticles(env,url)});
+  if(method==='GET' && seg[0]==='api' && seg[1]==='public' && seg[2]==='articles' && seg[3]) return json({article:await getPublicArticle(env,seg[3])});
+
+  if(method==='POST' && p==='/api/newsletter/subscribe') return json(await subscribe(env,request,await readJson(request)),202);
+  if(method==='GET' && p==='/api/newsletter/verify') return verifySubscription(env,url.searchParams.get('token')||'');
+  if(method==='GET' && p==='/api/newsletter/unsubscribe') return unsubscribe(env,url.searchParams.get('token')||'');
+  if(method==='POST' && p==='/api/webhooks/resend') return json(await handleResendWebhook(env,request));
+
+  if(method==='GET' && seg[0]==='api' && seg[1]==='oauth' && seg[2] && seg[3]==='callback'){
+    const redirect=await handleOAuthCallback(env,request,seg[2]); return Response.redirect(safeRedirect(env.PUBLIC_BASE_URL,redirect),302);
+  }
+
+  if(method==='GET' && seg[0]==='media' && seg[1]) return serveMedia(env,request,seg[1],await maybeUser(request,env));
+
+  if(p.startsWith('/api/admin/')){
+    const user=await requireUser(request,env);
+    if(method==='GET' && p==='/api/admin/me') return json({user});
+    if(method==='GET' && p==='/api/admin/system/status'){
+      const status=await systemIntegrationStatus(env);
+      const emailDomain=await getResendDomainStatus(env).catch(e=>({configured:false,reason:e instanceof Error?e.message:String(e)}));
+      const db=await env.DB.prepare(`SELECT (SELECT COUNT(*) FROM articles) articles,(SELECT COUNT(*) FROM media_assets) media,(SELECT COUNT(*) FROM subscribers WHERE status='active') subscribers`).first<any>();
+      return json({user,cloudflare:{d1:true,r2_media:true,r2_backups:true,access:Boolean(env.TEAM_DOMAIN&&env.POLICY_AUD)},...status,email_domain:emailDomain,counts:db||{}});
+    }
+
+    if(method==='GET' && p==='/api/admin/staff') return json({staff:await listStaff(env,user)});
+    if(method==='POST' && p==='/api/admin/staff') return json({staff:await upsertStaff(env,request,user,await readJson(request))},201);
+    if(method==='PATCH' && seg[2]==='staff' && seg[3]) return json({staff:await updateStaff(env,request,user,seg[3],await readJson(request))});
+
+    if(method==='GET' && p==='/api/admin/articles') return json({articles:await listAdminArticles(env)});
+    if(method==='POST' && p==='/api/admin/articles') return json({article:await createArticle(env,request,user,await readJson(request))},201);
+    if(seg[2]==='articles' && seg[3]){
+      const id=seg[3];
+      if(method==='PATCH' && seg.length===4) return json({article:await updateArticle(env,request,user,id,await readJson(request))});
+      if(method==='GET' && seg[4]==='revisions') return json({revisions:await listArticleRevisions(env,id)});
+      if(method==='POST' && seg[4]==='revisions' && seg[5] && seg[6]==='restore') return json({article:await restoreArticleRevision(env,request,user,id,seg[5])});
+      if(method==='POST' && seg[4] && ['submit','approve','reject','publish','archive'].includes(seg[4])){
+        const input=await readJson(request).catch(()=>({})); return json({article:await transitionArticle(env,request,user,id,seg[4] as any,String((input as any)?.note||''))});
+      }
+    }
+
+    if(method==='GET' && p==='/api/admin/media') return json({media:await listMedia(env)});
+    if(method==='POST' && p==='/api/admin/media/upload') return json({media:await uploadMedia(env,request,user)},201);
+    if(method==='POST' && p==='/api/admin/media/generate') return json({media:await generateImage(env,request,user,await readJson(request))},201);
+    if(method==='POST' && p==='/api/admin/media/edit') return json({media:await editImage(env,request,user,await readJson(request))},201);
+    if(method==='PATCH' && seg[2]==='media' && seg[3] && seg[4]==='visibility'){
+      const input:any=await readJson(request); if(!['private','public'].includes(input.visibility)) throw new HttpError(400,'visibility 必須為 private 或 public');
+      return json({media:await setMediaVisibility(env,request,user,seg[3],input.visibility)});
+    }
+
+    if(method==='GET' && p==='/api/admin/newsletter/subscribers') return json({subscribers:await listSubscribers(env)});
+    if(method==='GET' && p==='/api/admin/newsletter/campaigns') return json({campaigns:await listNewsletterCampaigns(env,user)});
+    if(method==='POST' && p==='/api/admin/newsletter/campaigns') return json({campaign:await createNewsletterCampaign(env,request,user,await readJson(request))},201);
+    if(method==='POST' && seg[2]==='newsletter' && seg[3]==='campaigns' && seg[4] && seg[5]==='approve') return json({campaign:await approveNewsletter(env,request,user,seg[4])});
+    if(method==='POST' && seg[2]==='newsletter' && seg[3]==='campaigns' && seg[4] && seg[5]==='send') return json({campaign:await sendNewsletter(env,request,user,seg[4],await readJson(request).catch(()=>({})))});
+
+    if(method==='GET' && p==='/api/admin/integrations') return json({integrations:await listIntegrations(env,user)});
+    if(method==='POST' && seg[2]==='integrations' && seg[3] && seg[4]==='connect'){
+      const input:any=await readJson(request).catch(()=>({})); return json({authorize_url:await startOAuth(env,request,user,seg[3],String(input.redirect_after||'/studio.html'))});
+    }
+    if(method==='POST' && seg[2]==='integrations' && seg[3] && seg[4]==='disconnect'){ await disconnectIntegration(env,request,user,seg[3]); return json({ok:true}); }
+
+    if(method==='GET' && p==='/api/admin/canva/templates') return json(await listBrandTemplates(env,user,url.searchParams.get('q')||''));
+    if(method==='GET' && seg[2]==='canva' && seg[3]==='templates' && seg[4] && seg[5]==='dataset') return json(await brandTemplateDataset(env,user,seg[4]));
+    if(method==='POST' && p==='/api/admin/canva/autofill') return json(await createAutofill(env,request,user,await readJson(request)),202);
+    if(method==='GET' && seg[2]==='canva' && seg[3]==='autofill' && seg[4]) return json(await getAutofillJob(env,user,seg[4]));
+    if(method==='POST' && p==='/api/admin/canva/assets/from-media') return json(await uploadPublicAssetToCanva(env,request,user,await readJson(request)),202);
+    if(method==='GET' && seg[2]==='canva' && seg[3]==='assets' && seg[4]) return json(await getCanvaAssetUploadJob(env,user,seg[4]));
+    if(method==='POST' && seg[2]==='social' && seg[3] && seg[4]==='canva') { const input:any=await readJson(request); await attachCanvaDesign(env,request,user,seg[3],String(input.design_id||'')); return json({ok:true}); }
+
+    if(method==='GET' && p==='/api/admin/social') return json({drafts:await listSocialDrafts(env,user)});
+    if(method==='POST' && p==='/api/admin/social') return json({draft:await createSocialDraft(env,request,user,await readJson(request))},201);
+    if(seg[2]==='social' && seg[3]){
+      if(method==='PATCH' && seg.length===4) return json({draft:await updateSocialDraft(env,request,user,seg[3],await readJson(request))});
+      if(method==='POST' && seg[4]==='submit'){ const input:any=await readJson(request).catch(()=>({})); return json({draft:await submitSocialDraft(env,request,user,seg[3],String(input.note||''))}); }
+      if(method==='POST' && seg[4]==='approve'){ const input:any=await readJson(request).catch(()=>({})); return json({draft:await approveSocialDraft(env,request,user,seg[3],String(input.note||''))}); }
+      if(method==='POST' && seg[4]==='publish') return json({draft:await publishSocialDraft(env,request,user,seg[3])});
+    }
+
+    if(method==='GET' && p==='/api/admin/backups') return json({backups:await listBackups(env,user)});
+    if(method==='POST' && p==='/api/admin/backups') return json({backup:await manualBackup(env,request,user)},201);
+    throw new HttpError(404,'找不到管理 API');
+  }
+
+  if(isStudioPath(p)){
+    await requireUser(request,env);
+    const assetUrl=new URL(request.url); if(p==='/studio'||p==='/studio/') assetUrl.pathname='/studio.html';
+    return env.ASSETS.fetch(new Request(assetUrl.toString(),request));
+  }
+  return env.ASSETS.fetch(request);
+}
+
+export default {
+  async fetch(request:Request,env:Env,ctx:ExecutionContext):Promise<Response>{
+    try{return securityHeaders(await route(request,env,ctx));}
+    catch(e:any){
+      console.error('request_error',e);
+      if(e instanceof HttpError) return securityHeaders(json({error:e.message},e.status));
+      return securityHeaders(json({error:'伺服器發生未預期錯誤',detail:e instanceof Error?e.message:String(e)},500));
+    }
+  },
+  async scheduled(controller:ScheduledController,env:Env,ctx:ExecutionContext):Promise<void>{
+    if(controller.cron==='17 3 * * *') ctx.waitUntil(createBackup(env).then(()=>undefined));
+    else ctx.waitUntil(runDueJobs(env));
+  }
+};

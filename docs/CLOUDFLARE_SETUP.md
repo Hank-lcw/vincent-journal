@@ -166,3 +166,20 @@ Because the database was still empty, the production config now uses Wrangler au
 - No hard-coded `database_id`
 
 Wrangler 4.45+ can create the D1 resource during deploy and keep the binding linked on future deploys. The original manually-created empty `vincent-journal` database is no longer the runtime target and can be retained temporarily until production is verified.
+
+
+## Provisioned production D1 pinned
+
+The automatically provisioned production database is now pinned for deterministic future deploys:
+
+- Database name: `vincent-journal-runtime`
+- Database ID: `50dc4b25-df3a-4cfd-b496-a037ac65a999`
+- Binding: `DB`
+
+For Cloudflare Builds, use this deploy command so schema migrations run immediately after a successful Worker deploy:
+
+```bash
+npm run deploy:cloudflare
+```
+
+This runs `wrangler deploy` followed by `wrangler d1 migrations apply DB --remote`.

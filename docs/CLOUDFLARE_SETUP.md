@@ -189,7 +189,7 @@ This runs `wrangler deploy` followed by `wrangler d1 migrations apply DB --remot
 
 To reduce Cloudflare Access cookie/redirect complexity, VINCENT STUDIO now uses one protected URL prefix:
 
-- Access destination: `vincent-journal.andyhank1234567890.workers.dev/studio/*`
+- Access destination: `vincent-journal.andyhank1234567890.workers.dev/studio`
 - Studio UI: `/studio/`
 - Studio admin API: `/studio/api/admin/*`
 

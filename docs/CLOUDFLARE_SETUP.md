@@ -148,3 +148,8 @@ https://vincent-journal.andyhank1234567890.workers.dev
 
 - Database name: `vincent-journal`
 - Database ID: `f0254d4a-c7ef-4362-bedd-5417f25ba779`
+
+## 已建立的 R2 Buckets
+
+- `vincent-journal-media` — 已建立，Private，Automatic / Asia Pacific，Standard
+- `vincent-journal-backups` — 已建立，Private，Automatic / Asia Pacific，Standard

@@ -111,5 +111,9 @@ Worker 會再次驗證 `Cf-Access-Jwt-Assertion`，不是只依賴前方 Access 
 - [ ] Create path-scoped Access protection for `/studio*`
 - [ ] Create path-scoped Access protection for `/api/admin/*`
 - [ ] Allow only `andyhank1234567890@gmail.com`
-- [ ] Record Team Domain and Application AUD in `wrangler.jsonc`
+- [x] Record Team Domain and Application AUD in `wrangler.jsonc`
 - [ ] Verify first login bootstraps owner role
+
+### Access JWT values
+- Team Domain: `https://andyhank1234567890.cloudflareaccess.com`
+- Application AUD: `7dd196f9be1362f0dcd1b39f50ab859d2545c18b94ecbea156da4981df16b65c`

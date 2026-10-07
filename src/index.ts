@@ -36,7 +36,12 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
     const redirect=await handleOAuthCallback(env,request,seg[2]); return Response.redirect(safeRedirect(env.PUBLIC_BASE_URL,redirect),302);
   }
 
-  if(method==='GET' && seg[0]==='media' && seg[1]) return serveMedia(env,request,seg[1],await maybeUser(request,env));
+  if((method==='GET' || method==='HEAD') && seg[0]==='studio' && seg[1]==='media' && seg[2]){
+    const user=await requireUser(request,env);
+    return serveMedia(env,request,seg[2],user);
+  }
+
+  if((method==='GET' || method==='HEAD') && seg[0]==='media' && seg[1]) return serveMedia(env,request,seg[1],await maybeUser(request,env));
 
   if(p.startsWith('/api/admin/')){
     const user=await requireUser(request,env);

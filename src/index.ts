@@ -7,7 +7,7 @@ import { listMedia, uploadMedia, serveMedia, generateImage, editImage, setMediaV
 import { subscribe, verifySubscription, unsubscribe, handleResendWebhook, listSubscribers, listNewsletterCampaigns, createNewsletterCampaign, approveNewsletter, sendNewsletter, getResendDomainStatus } from './newsletter';
 import { listIntegrations, startOAuth, handleOAuthCallback, disconnectIntegration, systemIntegrationStatus } from './integrations';
 import { listBrandTemplates, brandTemplateDataset, createAutofill, getAutofillJob, attachCanvaDesign, uploadPublicAssetToCanva, getCanvaAssetUploadJob } from './canva';
-import { listSocialDrafts, createSocialDraft, updateSocialDraft, submitSocialDraft, approveSocialDraft, publishSocialDraft } from './social';
+import { listSocialDrafts, createSocialDraft, updateSocialDraft, submitSocialDraft, approveSocialDraft, publishSocialDraft, generateSocialCopy } from './social';
 import { listBackups, manualBackup, createBackup } from './backup';
 import { runDueJobs } from './jobs';
 
@@ -104,6 +104,7 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
     if(method==='POST' && seg[2]==='social' && seg[3] && seg[4]==='canva') { const input:any=await readJson(request); await attachCanvaDesign(env,request,user,seg[3],String(input.design_id||'')); return json({ok:true}); }
 
     if(method==='GET' && p==='/api/admin/social') return json({drafts:await listSocialDrafts(env,user)});
+    if(method==='POST' && p==='/api/admin/social/generate') return json(await generateSocialCopy(env,user,await readJson(request)));
     if(method==='POST' && p==='/api/admin/social') return json({draft:await createSocialDraft(env,request,user,await readJson(request))},201);
     if(seg[2]==='social' && seg[3]){
       if(method==='PATCH' && seg.length===4) return json({draft:await updateSocialDraft(env,request,user,seg[3],await readJson(request))});

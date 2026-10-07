@@ -183,3 +183,14 @@ npm run deploy:cloudflare
 ```
 
 This runs `wrangler deploy` followed by `wrangler d1 migrations apply DB --remote`.
+
+
+## Single-prefix Access layout
+
+To reduce Cloudflare Access cookie/redirect complexity, VINCENT STUDIO now uses one protected URL prefix:
+
+- Access destination: `vincent-journal.andyhank1234567890.workers.dev/studio*`
+- Studio UI: `/studio.html`
+- Studio admin API: `/studio/api/admin/*`
+
+The Worker internally normalizes `/studio/api/admin/*` to the existing admin router. Legacy `/api/admin/*` remains JWT-protected by the Worker but no longer needs its own Access destination.

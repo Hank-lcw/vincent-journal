@@ -13,7 +13,7 @@
     {
       "binding": "DB",
       "database_name": "vincent-journal",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "f0254d4a-c7ef-4362-bedd-5417f25ba779",
       "migrations_dir": "migrations"
     }
   ],

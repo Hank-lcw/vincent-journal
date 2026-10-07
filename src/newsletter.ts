@@ -1,7 +1,7 @@
 import type { Env, AuthUser } from './types';
 import { HttpError, html } from './http';
 import { audit } from './audit';
-import { decodeBase64, escapeHtml, hashIp, normalizeEmail, nowIso, randomToken, sha256, uuid, validEmail } from './utils';
+import { decodeBase64, escapeHtml, hashIp, normalizeEmail, nowIso, randomToken, sha256, uuid, validEmail, toArrayBuffer } from './utils';
 import { requireRole } from './auth';
 
 async function verifyTurnstile(env: Env, request: Request, token?: string): Promise<void> {
@@ -107,7 +107,7 @@ async function verifySvix(secret: string, payload: string, headers: Headers): Pr
   const tsNum=Number(ts); if(!Number.isFinite(tsNum)||Math.abs(Date.now()/1000-tsNum)>300) return false;
   const rawSecret=secret.startsWith('whsec_')?secret.slice(6):secret;
   let keyBytes:Uint8Array; try{keyBytes=decodeBase64(rawSecret);}catch{return false;}
-  const key=await crypto.subtle.importKey('raw',keyBytes,{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const key=await crypto.subtle.importKey('raw',toArrayBuffer(keyBytes),{name:'HMAC',hash:'SHA-256'},false,['sign']);
   const mac=new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(`${id}.${ts}.${payload}`)));
   for(const item of sig.split(' ')){ const [version,value]=item.split(','); if(version!=='v1'||!value) continue; try{if(timingSafeEqual(mac,decodeBase64(value))) return true;}catch{} }
   return false;

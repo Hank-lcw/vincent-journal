@@ -1,0 +1,42 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vincent-journal",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "vincent-journal",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    { "binding": "MEDIA", "bucket_name": "vincent-journal-media" },
+    { "binding": "BACKUPS", "bucket_name": "vincent-journal-backups" }
+  ],
+  "vars": {
+    "PUBLIC_BASE_URL": "https://REPLACE_WITH_YOUR_DOMAIN",
+    "TEAM_DOMAIN": "https://REPLACE_WITH_TEAM.cloudflareaccess.com",
+    "POLICY_AUD": "REPLACE_WITH_ACCESS_AUD",
+    "BOOTSTRAP_ADMIN_EMAIL": "REPLACE_WITH_ADMIN_EMAIL",
+    "MAIL_FROM": "VINCENT JOURNAL <journal@REPLACE_WITH_YOUR_DOMAIN>",
+    "RESEND_SEGMENT_ID": "REPLACE_WITH_RESEND_SEGMENT_ID",
+    "META_GRAPH_VERSION": "v24.0",
+    "CANVA_REDIRECT_URI": "https://REPLACE_WITH_YOUR_DOMAIN/api/oauth/canva/callback",
+    "FACEBOOK_REDIRECT_URI": "https://REPLACE_WITH_YOUR_DOMAIN/api/oauth/facebook/callback",
+    "INSTAGRAM_REDIRECT_URI": "https://REPLACE_WITH_YOUR_DOMAIN/api/oauth/instagram/callback",
+    "THREADS_REDIRECT_URI": "https://REPLACE_WITH_YOUR_DOMAIN/api/oauth/threads/callback",
+    "XHS_REDIRECT_URI": "https://REPLACE_WITH_YOUR_DOMAIN/api/oauth/xiaohongshu/callback"
+  },
+  "triggers": {
+    "crons": ["*/5 * * * *", "17 3 * * *"]
+  },
+  "observability": { "enabled": true }
+}

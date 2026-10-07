@@ -115,7 +115,7 @@ npm run deploy
 完成後開：
 
 - 公開站：`https://YOUR_DOMAIN/`
-- 後台：`https://YOUR_DOMAIN/studio/`
+- 後台：`https://YOUR_DOMAIN/studio`
 - 系統狀態：後台 → 系統與權限
 
 ## 6. GitHub + Cloudflare Builds
@@ -190,7 +190,7 @@ This runs `wrangler deploy` followed by `wrangler d1 migrations apply DB --remot
 To reduce Cloudflare Access cookie/redirect complexity, VINCENT STUDIO now uses one protected URL prefix:
 
 - Access destination: `vincent-journal.andyhank1234567890.workers.dev/studio`
-- Studio UI: `/studio/`
+- Studio UI: `/studio`
 - Studio admin API: `/studio/api/admin/*`
 
 The Worker internally normalizes `/studio/api/admin/*` to the existing admin router. Legacy `/api/admin/*` remains JWT-protected by the Worker but no longer needs its own Access destination.

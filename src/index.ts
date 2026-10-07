@@ -91,7 +91,7 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
 
     if(method==='GET' && p==='/api/admin/integrations') return json({integrations:await listIntegrations(env,user)});
     if(method==='POST' && seg[2]==='integrations' && seg[3] && seg[4]==='connect'){
-      const input:any=await readJson(request).catch(()=>({})); return json({authorize_url:await startOAuth(env,request,user,seg[3],String(input.redirect_after||'/studio.html'))});
+      const input:any=await readJson(request).catch(()=>({})); return json({authorize_url:await startOAuth(env,request,user,seg[3],String(input.redirect_after||'/studio'))});
     }
     if(method==='POST' && seg[2]==='integrations' && seg[3] && seg[4]==='disconnect'){ await disconnectIntegration(env,request,user,seg[3]); return json({ok:true}); }
 

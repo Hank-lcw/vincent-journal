@@ -226,6 +226,19 @@ function fillSocialSources(){
   $('#socialArticle').innerHTML='<option value="">不綁定文章</option>'+articlesCache.map(a=>`<option value="${e(a.id)}">${e(a.title)}</option>`).join('');
   $('#socialMedia').innerHTML=mediaCache.map(m=>`<option value="${e(m.id)}">${e(m.filename)} · ${m.visibility==='public'?'公開':'私人'}</option>`).join('');
 }
+async function generateSocialCopy(){
+  const articleId=$('#socialArticle').value;
+  if(!articleId)return toast('請先選擇來源文章');
+  const btn=$('#generateSocialCopyBtn');const old=btn.textContent;btn.disabled=true;btn.textContent='AI 產生中…';
+  try{
+    const d=await api('/studio/api/admin/social/generate',{method:'POST',body:JSON.stringify({platform:$('#socialPlatform').value,article_id:articleId})});
+    $('#socialTitle').value=d.title||'';
+    $('#socialCopy').value=d.copy||'';
+    $('#socialAiBrief').textContent=d.visual_brief?('視覺建議：'+d.visual_brief):'';
+    toast('已依平台產生文案，發布前請人工確認');
+  }catch(err){toast(err.message)}
+  finally{btn.disabled=false;btn.textContent=old}
+}
 async function createSocial(submit){
   try{
     const mediaIds=[...$('#socialMedia').selectedOptions].map(o=>o.value);
@@ -241,6 +254,7 @@ async function loadSocial(){
     renderIntegrationStatus(intg.integrations||[]);fillSocialSources();renderSocialDrafts(drafts.drafts||[]);
   }catch(err){$('#socialStatus').innerHTML=`<p>${e(err.message)}</p>`}
 }
+$('#generateSocialCopyBtn').onclick=generateSocialCopy;
 $('#saveSocialDraftBtn').onclick=()=>createSocial(false);
 $('#submitSocialDraftBtn').onclick=()=>createSocial(true);
 

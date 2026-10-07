@@ -60,7 +60,7 @@ function oauthConfig(env: Env, provider: string): { authorize: string; redirect:
   throw new HttpError(400, '不支援的 OAuth 平台');
 }
 
-export async function startOAuth(env: Env, request: Request, user: AuthUser, provider: string, redirectAfter = '/studio.html'): Promise<string> {
+export async function startOAuth(env: Env, request: Request, user: AuthUser, provider: string, redirectAfter = '/studio'): Promise<string> {
   requireRole(user, 'admin');
   const cfg = oauthConfig(env, provider);
   const state = randomToken(24);
@@ -183,7 +183,7 @@ export async function handleOAuthCallback(env: Env, request: Request, provider: 
   } else throw new HttpError(501,'此平台目前採人工交付模式');
 
   await env.DB.prepare(`DELETE FROM oauth_states WHERE state=?`).bind(state).run();
-  return stateRow.redirect_after || '/studio.html';
+  return stateRow.redirect_after || '/studio';
 }
 
 export async function systemIntegrationStatus(env:Env):Promise<any>{

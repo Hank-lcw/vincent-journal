@@ -12,12 +12,14 @@ import { listBackups, manualBackup, createBackup } from './backup';
 import { runDueJobs } from './jobs';
 
 function parts(pathname:string):string[]{ return pathname.split('/').filter(Boolean).map(decodeURIComponent); }
-function isStudioPath(path:string):boolean { return path==='/studio' || path==='/studio/' || path==='/studio.html' || path.startsWith('/api/admin/'); }
+function isStudioPath(path:string):boolean { return path==='/studio/' || path.startsWith('/api/admin/'); }
 async function maybeUser(request:Request,env:Env):Promise<AuthUser|null>{ if(!request.headers.get('Cf-Access-Jwt-Assertion')) return null; try{return await requireUser(request,env);}catch{return null;} }
-function safeRedirect(base:string,path:string):string{ try{const u=new URL(path,base),b=new URL(base); return u.origin===b.origin?u.toString():new URL('/studio.html',base).toString();}catch{return new URL('/studio.html',base).toString();} }
+function safeRedirect(base:string,path:string):string{ try{const u=new URL(path,base),b=new URL(base); return u.origin===b.origin?u.toString():new URL('/studio/',base).toString();}catch{return new URL('/studio/',base).toString();} }
 
 async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Response>{
-  const url=new URL(request.url); let p=url.pathname; if(p.startsWith('/studio/api/admin/')) p='/api/admin/'+p.slice('/studio/api/admin/'.length); const seg=parts(p), method=request.method.toUpperCase();
+  const url=new URL(request.url); let p=url.pathname; const method=request.method.toUpperCase();
+  if(method==='GET' && (p==='/studio' || p==='/studio.html')) return Response.redirect(new URL('/studio/',url).toString(),302);
+  if(p.startsWith('/studio/api/admin/')) p='/api/admin/'+p.slice('/studio/api/admin/'.length); const seg=parts(p);
 
   if(method==='GET' && p==='/api/public/articles') return json({articles:await listPublicArticles(env,url)});
   if(method==='GET' && seg[0]==='api' && seg[1]==='public' && seg[2]==='articles' && seg[3]) return json({article:await getPublicArticle(env,seg[3])});
@@ -104,7 +106,7 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
 
   if(isStudioPath(p)){
     await requireUser(request,env);
-    const assetUrl=new URL(request.url); if(p==='/studio'||p==='/studio/') assetUrl.pathname='/studio.html';
+    const assetUrl=new URL(request.url); if(p==='/studio/') assetUrl.pathname='/studio.html';
     return env.ASSETS.fetch(new Request(assetUrl.toString(),request));
   }
   return env.ASSETS.fetch(request);

@@ -96,3 +96,9 @@ Worker 會再次驗證 `Cf-Access-Jwt-Assertion`，不是只依賴前方 Access 
 - [ ] 確認 D1 Time Travel
 - [ ] 完整 E2E：登入 → 圖片 → 文章 → 送審 → 核准 → 發布 → 訂閱 → 驗證 → 電子報 → 社群草稿
 - [ ] E2E 全數通過後才正式導流
+
+## Runtime D1
+- [x] Auto-provisioned production D1: `vincent-journal-runtime`
+- [x] Database ID pinned: `50dc4b25-df3a-4cfd-b496-a037ac65a999`
+- [ ] Cloudflare Build deploy command changed to `npm run deploy:cloudflare`
+- [ ] Confirm migration creates the production tables

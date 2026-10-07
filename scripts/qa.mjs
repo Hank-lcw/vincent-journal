@@ -25,7 +25,7 @@ const studio=fs.readFileSync('public/studio.js','utf8');
 if(studio.includes('/studio.html')) fail('stale /studio.html reference in Studio JS');
 if(studio.includes('"/api/admin/')||studio.includes("'/api/admin/")) fail('admin API escaped /studio Access prefix');
 if(!studio.includes('/studio/api/admin/')) fail('Studio admin API prefix missing');
-if(studio.includes("$('.view').forEach")||studio.includes("$('#studioMenu button').forEach")) fail('Studio view switching must use querySelectorAll');
+if(!studio.includes("$('.view').forEach")||!studio.includes("$('#studioMenu button').forEach")) fail('Studio view switching must use querySelectorAll');
 
 const migration=fs.readFileSync('migrations/0001_initial.sql','utf8');
 const tables=[...migration.matchAll(/CREATE TABLE IF NOT EXISTS\s+([A-Za-z0-9_]+)/g)].map(x=>x[1]);

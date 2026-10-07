@@ -22,18 +22,18 @@
     { "binding": "BACKUPS", "bucket_name": "vincent-journal-backups" }
   ],
   "vars": {
-    "PUBLIC_BASE_URL": "https://vincent-journal.YOUR_WORKERS_SUBDOMAIN.workers.dev",
+    "PUBLIC_BASE_URL": "https://vincent-journal.andyhank1234567890.workers.dev",
     "TEAM_DOMAIN": "https://REPLACE_WITH_TEAM.cloudflareaccess.com",
     "POLICY_AUD": "REPLACE_WITH_ACCESS_AUD",
     "BOOTSTRAP_ADMIN_EMAIL": "andyhank1234567890@gmail.com",
     "MAIL_FROM": "VINCENT JOURNAL <journal@YOUR_VERIFIED_MAIL_DOMAIN>",
     "RESEND_SEGMENT_ID": "REPLACE_WITH_RESEND_SEGMENT_ID",
     "META_GRAPH_VERSION": "v24.0",
-    "CANVA_REDIRECT_URI": "https://vincent-journal.YOUR_WORKERS_SUBDOMAIN.workers.dev/api/oauth/canva/callback",
-    "FACEBOOK_REDIRECT_URI": "https://vincent-journal.YOUR_WORKERS_SUBDOMAIN.workers.dev/api/oauth/facebook/callback",
-    "INSTAGRAM_REDIRECT_URI": "https://vincent-journal.YOUR_WORKERS_SUBDOMAIN.workers.dev/api/oauth/instagram/callback",
-    "THREADS_REDIRECT_URI": "https://vincent-journal.YOUR_WORKERS_SUBDOMAIN.workers.dev/api/oauth/threads/callback",
-    "XHS_REDIRECT_URI": "https://vincent-journal.YOUR_WORKERS_SUBDOMAIN.workers.dev/api/oauth/xiaohongshu/callback"
+    "CANVA_REDIRECT_URI": "https://vincent-journal.andyhank1234567890.workers.dev/api/oauth/canva/callback",
+    "FACEBOOK_REDIRECT_URI": "https://vincent-journal.andyhank1234567890.workers.dev/api/oauth/facebook/callback",
+    "INSTAGRAM_REDIRECT_URI": "https://vincent-journal.andyhank1234567890.workers.dev/api/oauth/instagram/callback",
+    "THREADS_REDIRECT_URI": "https://vincent-journal.andyhank1234567890.workers.dev/api/oauth/threads/callback",
+    "XHS_REDIRECT_URI": "https://vincent-journal.andyhank1234567890.workers.dev/api/oauth/xiaohongshu/callback"
   },
   "triggers": {
     "crons": ["*/5 * * * *", "17 3 * * *"]

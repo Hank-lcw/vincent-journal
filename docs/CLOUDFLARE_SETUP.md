@@ -20,25 +20,15 @@ npm install
 npx wrangler login
 ```
 
-建立 D1：
-
-```bash
-npx wrangler d1 create vincent-journal
-```
-
-把回傳的 `database_id` 寫進 `wrangler.jsonc`。
-
-建立 R2：
-
-```bash
-npx wrangler r2 bucket create vincent-journal-media
-npx wrangler r2 bucket create vincent-journal-backups
-```
+Production D1 已固定為：
+- Binding: `DB`
+- Database name: `vincent-journal-runtime`
+- Database ID: `50dc4b25-df3a-4cfd-b496-a037ac65a999`
 
 執行 migration：
 
 ```bash
-npx wrangler d1 migrations apply vincent-journal --remote
+npx wrangler d1 migrations apply DB --remote
 ```
 
 ## 2. 填入一般變數
@@ -60,7 +50,7 @@ npx wrangler d1 migrations apply vincent-journal --remote
 建議同一個 Access application 加入兩個受保護 hostname/path，使它們共用同一個 Audience (`aud`)：
 
 - `journal.example.com/studio*`
-- `journal.example.com/api/admin/*`
+- `journal.example.com/studio*`（同一 prefix 會涵蓋 Studio UI 與 `/studio/api/admin/*`）
 
 Policy 只允許你的管理員 Email / Identity Provider 群組。
 
@@ -98,6 +88,7 @@ npx wrangler secret put THREADS_APP_SECRET
 選用：
 
 ```bash
+npx wrangler secret put TURNSTILE_SITE_KEY
 npx wrangler secret put TURNSTILE_SECRET_KEY
 npx wrangler secret put XHS_CLIENT_ID
 npx wrangler secret put XHS_CLIENT_SECRET
@@ -109,7 +100,7 @@ npx wrangler secret put XHS_CLIENT_SECRET
 
 ```bash
 npm run typecheck
-npm run deploy
+npm run deploy:cloudflare
 ```
 
 完成後開：

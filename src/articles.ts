@@ -1,20 +1,53 @@
 import type { Env, AuthUser } from './types';
 import { HttpError } from './http';
-import { asInt, nowIso, slugify, uuid } from './utils';
+import { asInt, escapeHtml, nowIso, slugify, uuid } from './utils';
 import { requireRole } from './auth';
 import { audit } from './audit';
 
 const categories = new Set(['aesthetics','healthy-aging','longevity']);
 
+function readHtmlAttr(raw:string,name:string):string|null {
+  const re=new RegExp('\\b'+name+'\\s*=\\s*(?:"([^"]*)"|\\'([^\\']*)\\'|([^\\s"\\'=<>]+))','i');
+  const m=raw.match(re); return m ? (m[1] ?? m[2] ?? m[3] ?? '') : null;
+}
+function safeHref(value:string):string|null {
+  const v=value.trim(), lower=v.toLowerCase();
+  if(/^https?:\/\//.test(lower) || /^mailto:/.test(lower) || /^tel:/.test(lower) || /^#/.test(v) || /^\/(?!\/)/.test(v) || /^\.\.?\//.test(v)) return v;
+  return null;
+}
+function safeImageSrc(value:string):string|null {
+  const v=value.trim(), lower=v.toLowerCase();
+  if(/^https?:\/\//.test(lower) || /^\/media\//.test(v) || /^assets\//.test(v) || /^\.\.?\/assets\//.test(v)) return v;
+  return null;
+}
 function sanitizeArticleHtml(input:string):string {
-  return input.slice(0,100_000)
-    .replace(/<!--([\s\S]*?)-->/g,'')
-    .replace(/<(script|iframe|object|embed|form|input|button|textarea|select|option|meta|link|base)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'')
-    .replace(/<(script|iframe|object|embed|form|input|button|textarea|select|option|meta|link|base)\b[^>]*\/?\s*>/gi,'')
-    .replace(/\son[a-z]+\s*=\s*(["'])([\s\S]*?)\1/gi,'')
-    .replace(/\son[a-z]+\s*=\s*[^\s>]+/gi,'')
-    .replace(/\sstyle\s*=\s*(["'])([\s\S]*?)\1/gi,'')
-    .replace(/\s(href|src)\s*=\s*(["'])\s*javascript:[\s\S]*?\2/gi,'');
+  const allowed=new Set(['p','h2','h3','h4','blockquote','ul','ol','li','strong','b','em','i','u','br','hr','a','code','pre','sup','sub','figure','figcaption','img']);
+  const voids=new Set(['br','hr','img']);
+  let html=input.slice(0,100_000)
+    .replace(/<!--[\s\S]*?-->/g,'')
+    .replace(/<(script|style|iframe|object|embed|form|template|svg|math|noscript|meta|link|base)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'')
+    .replace(/<(script|style|iframe|object|embed|form|template|svg|math|noscript|meta|link|base)\b[^>]*\/?\s*>/gi,'');
+  html=html.replace(/<\s*(\/?)\s*([a-z0-9:-]+)([^>]*)>/gi,(full,closing,nameRaw,attrs)=>{
+    const name=String(nameRaw).toLowerCase();
+    if(!allowed.has(name)) return '';
+    if(closing) return voids.has(name)?'':`</${name}>`;
+    if(name==='a'){
+      const hrefRaw=readHtmlAttr(String(attrs),'href');
+      const href=hrefRaw?safeHref(hrefRaw):null;
+      const targetRaw=readHtmlAttr(String(attrs),'target');
+      const target=targetRaw==='_blank'?' target="_blank" rel="noopener noreferrer"':'';
+      return `<a${href?` href="${escapeHtml(href)}"`:''}${target}>`;
+    }
+    if(name==='img'){
+      const srcRaw=readHtmlAttr(String(attrs),'src');
+      const src=srcRaw?safeImageSrc(srcRaw):null;
+      if(!src) return '';
+      const alt=readHtmlAttr(String(attrs),'alt')||'';
+      return `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt.slice(0,500))}" loading="lazy" decoding="async">`;
+    }
+    return `<${name}>`;
+  });
+  return html;
 }
 
 function normalizeArticleInput(input: any, partial = false) {
@@ -38,6 +71,13 @@ function normalizeArticleInput(input: any, partial = false) {
   if (!partial && !out.title) throw new HttpError(400, '文章標題不可空白');
   if (out.title !== undefined && !out.title) throw new HttpError(400, '文章標題不可空白');
   return out;
+}
+
+async function validateCoverMedia(env:Env,id:string|null|undefined):Promise<void>{
+  if(!id) return;
+  const media=await env.DB.prepare(`SELECT id,mime_type FROM media_assets WHERE id=?`).bind(id).first<any>();
+  if(!media) throw new HttpError(400,'找不到指定的封面圖片');
+  if(!String(media.mime_type||'').startsWith('image/')) throw new HttpError(400,'封面素材必須是圖片');
 }
 
 async function nextRevision(env: Env, articleId: string): Promise<number> {
@@ -77,6 +117,7 @@ export async function getPublicArticle(env: Env, slug: string): Promise<any> {
 
 export async function createArticle(env: Env, request: Request, user: AuthUser, input: any): Promise<any> {
   const data = normalizeArticleInput(input, false);
+  await validateCoverMedia(env,data.cover_media_id);
   const id = uuid();
   let slug = data.slug || slugify(data.title);
   const exists = await env.DB.prepare(`SELECT id FROM articles WHERE slug=?`).bind(slug).first();
@@ -94,6 +135,7 @@ export async function updateArticle(env: Env, request: Request, user: AuthUser, 
   if (!current) throw new HttpError(404, '找不到文章');
   if (current.status === 'published' && user.role === 'editor') throw new HttpError(403, '已發布文章需由 reviewer 以上權限修改');
   const data = normalizeArticleInput(input, true);
+  if (Object.prototype.hasOwnProperty.call(data,'cover_media_id')) await validateCoverMedia(env,data.cover_media_id);
   const allowed = ['title','subtitle','excerpt','body','category','slug','cover_media_id','read_time_minutes','featured','seo_title','seo_description'];
   const keys = allowed.filter(k => Object.prototype.hasOwnProperty.call(data,k));
   if (!keys.length) return current;
@@ -135,6 +177,7 @@ export async function transitionArticle(env: Env, request: Request, user: AuthUs
     if (!['approved','published'].includes(status)) throw new HttpError(409, '文章需先核准才能發布');
     if (!String(current.excerpt || '').trim()) throw new HttpError(409, '發布前請補上文章摘要');
     if (!String(current.body || '').trim()) throw new HttpError(409, '發布前請補上文章內文');
+    await validateCoverMedia(env,current.cover_media_id);
     status = 'published';
   } else if (action === 'archive') {
     requireRole(user, 'admin');

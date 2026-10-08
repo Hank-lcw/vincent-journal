@@ -2,7 +2,7 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const e=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let me=null, articlesCache=[], issuesCache=[], mediaCache=[], campaignsCache=[], socialDraftsCache=[], canvaDataset=null, canvaAssetCache={}, editingArticleId=null, editingIssueId=null, editMediaId=null, editingCampaignId=null, editingSocialId=null;
-let socialMediaOrder=[], socialPreviewIndex=0, socialDragId=null;
+let socialMediaOrder=[], socialPreviewIndex=0, socialDragId=null, socialStoryboard=[];
 const roleRank={editor:10,reviewer:20,admin:30,owner:40};
 const canReview=()=>roleRank[me?.role]>=20, canAdmin=()=>roleRank[me?.role]>=30;
 const categoryLabel=s=>({aesthetics:'美學觀點','healthy-aging':'健康老化',longevity:'長壽科學'})[s]||s;
@@ -410,6 +410,7 @@ function renderMedia(){
         <div class="studio-actions">
           <button class="btn" data-media-tools="${e(m.id)}">裁切／衍生</button>
           <button class="btn" data-media-edit="${e(m.id)}">AI 修改</button>
+          <button class="btn" data-media-analyze="${e(m.id)}">${m.metadata?.ai_catalogued?'重新 AI 命名':'AI 辨識命名'}</button>
           ${family.length>1?`<button class="btn" data-media-compare="${e(m.id)}">比較版本</button>`:''}
           <label class="media-social-pick"><span class="sr-only">用於社群</span><select data-media-social="${e(m.id)}">
             <option value="">用於社群…</option>
@@ -434,8 +435,9 @@ function renderMedia(){
     $('#aiEditPanel').scrollIntoView({behavior:'smooth',block:'start'});
   });
   $$('[data-media-tools]').forEach(b=>b.onclick=()=>openMediaTools(b.dataset.mediaTools,false));
-  $$('[data-media-compare]').forEach(b=>b.onclick=()=>openMediaTools(b.dataset.mediaCompare,true));
-  $$('[data-media-delete]').forEach(b=>b.onclick=()=>deleteMediaFromStudio(b.dataset.mediaDelete));
+  $('[data-media-compare]').forEach(b=>b.onclick=()=>openMediaTools(b.dataset.mediaCompare,true));
+  $('[data-media-analyze]').forEach(b=>b.onclick=()=>analyzeMediaName(b.dataset.mediaAnalyze,b));
+  $('[data-media-delete]').forEach(b=>b.onclick=()=>deleteMediaFromStudio(b.dataset.mediaDelete));
   $$('[data-media-social]').forEach(s=>s.onchange=async()=>{
     const platform=s.value;if(!platform)return;
     s.disabled=true;
@@ -544,6 +546,25 @@ async function uploadSiteVisual(key,button){
 }
 $('#refreshSiteVisualsBtn').onclick=async()=>{await fetchMedia(true);renderMedia();await loadSiteVisuals()};
 
+async function analyzeMediaName(id,button=null,quiet=false){
+  const old=button?.textContent;
+  if(button){button.disabled=true;button.textContent='AI 辨識中…'}
+  try{
+    const r=await api('/studio/api/admin/media/'+encodeURIComponent(id)+'/analyze',{method:'POST',body:'{}'});
+    mediaCache=[];
+    await fetchMedia(true);
+    renderMedia();
+    if($('.view[data-view="social"]')?.classList.contains('active')) fillSocialSources();
+    if(!quiet)toast('AI 已完成素材命名：'+(r.media?.filename||''));
+    return r.media;
+  }catch(err){
+    if(!quiet)toast('AI 命名未完成：'+err.message);
+    throw err;
+  }finally{
+    if(button){button.disabled=false;button.textContent=old}
+  }
+}
+
 async function deleteMediaFromStudio(id){
   const m=mediaCache.find(x=>x.id===id); if(!m)return;
   if(mediaUsageCount(m)>0)return toast('這張素材仍被前台網站、文章、刊物或社群草稿使用，不能刪除');
@@ -563,22 +584,28 @@ $('#uploadMediaBtn').onclick=async()=>{
   const file=$('#mediaFile').files[0];if(!file)return toast('請先選擇圖片');
   const fd=new FormData();fd.append('file',file);fd.append('alt_text',$('#mediaAlt').value);
   try{
-    await api('/studio/api/admin/media/upload',{method:'POST',body:fd});
-    toast('圖片已上傳');$('#mediaFile').value='';mediaCache=[];await loadMedia(true);
+    const r=await api('/studio/api/admin/media/upload',{method:'POST',body:fd});
+    $('#mediaFile').value='';$('#mediaAlt').value='';
+    toast('圖片已上傳，AI 正在辨識命名…');
+    try{await analyzeMediaName(r.media.id,null,true);toast('圖片已上傳並完成 AI 命名')}
+    catch{mediaCache=[];await loadMedia(true);toast('圖片已上傳；AI 命名暫時失敗，可稍後在素材卡重試')}
   }catch(err){toast(err.message)}
 };
 $('#generateImageBtn').onclick=async()=>{
   try{
     toast('正在生成圖片…');
-    await api('/studio/api/admin/media/generate',{method:'POST',body:JSON.stringify({prompt:$('#aiPrompt').value,size:'1536x1024'})});
-    toast('AI 圖片已建立');mediaCache=[];await loadMedia(true);
+    const r=await api('/studio/api/admin/media/generate',{method:'POST',body:JSON.stringify({prompt:$('#aiPrompt').value,size:'1536x1024'})});
+    toast('AI 圖片已建立，正在建立素材名稱…');
+    try{await analyzeMediaName(r.media.id,null,true)}catch{}
+    mediaCache=[];await loadMedia(true);toast('AI 圖片已建立');
   }catch(err){toast(err.message)}
 };
 $('#editImageBtn').onclick=async()=>{
   if(!editMediaId)return toast('請先選擇圖片');
   try{
     toast('正在建立修改版本…');
-    await api('/studio/api/admin/media/edit',{method:'POST',body:JSON.stringify({media_id:editMediaId,prompt:$('#aiEditPrompt').value})});
+    const r=await api('/studio/api/admin/media/edit',{method:'POST',body:JSON.stringify({media_id:editMediaId,prompt:$('#aiEditPrompt').value})});
+    try{await analyzeMediaName(r.media.id,null,true)}catch{}
     toast('修改版本已建立');$('#aiEditPanel').hidden=true;$('#aiEditPrompt').value='';editMediaId=null;mediaCache=[];await loadMedia(true);
   }catch(err){toast(err.message)}
 };
@@ -975,6 +1002,84 @@ async function socialAction(id,action){
   }catch(err){toast(err.message)}
 }
 const socialPlatformLabel=p=>({instagram:'Instagram',facebook:'Facebook',threads:'Threads',xiaohongshu:'小紅書'})[p]||p;
+function mediaPickerSearchText(m){
+  return [m.filename,m.alt_text,mediaSourceLabel(m),mediaPreset(m),...(Array.isArray(m.tags)?m.tags:[])].join(' ').toLowerCase();
+}
+function toggleSocialMedia(id){
+  if(socialMediaOrder.includes(id)) socialMediaOrder=socialMediaOrder.filter(x=>x!==id);
+  else{
+    if(socialMediaOrder.length>=10)return toast('單篇社群貼文最多使用 10 張圖片');
+    socialMediaOrder.push(id);
+  }
+  socialPreviewIndex=Math.min(socialPreviewIndex,Math.max(0,socialMediaOrder.length-1));
+  syncSocialMediaSelect();
+  renderSocialMediaPicker();
+  renderSocialCarousel();
+  renderSocialStoryboard();
+  renderSocialPreview();
+}
+function renderSocialMediaPicker(){
+  const root=$('#socialMediaPicker');if(!root)return;
+  const q=String($('#socialMediaSearch')?.value||'').trim().toLowerCase();
+  const list=mediaCache.filter(m=>!q||mediaPickerSearchText(m).includes(q));
+  $('#socialMediaSelectedCount').textContent=`已選 ${socialMediaOrder.length} / 10`;
+  if(!list.length){
+    root.innerHTML='<p class="social-media-picker-empty">沒有符合搜尋條件的素材。</p>';return;
+  }
+  root.innerHTML=list.map(m=>{
+    const selected=socialMediaOrder.includes(m.id);
+    return `<button type="button" class="social-media-pick-card ${selected?'is-selected':''}" data-social-media-pick="${e(m.id)}" aria-pressed="${selected?'true':'false'}">
+      <span class="social-media-pick-image"><img loading="lazy" decoding="async" src="${e(mediaUrl(m))}" alt="${e(m.alt_text||'')}"><i>${selected?'✓':'＋'}</i></span>
+      <span class="social-media-pick-name">${e(m.filename)}</span>
+      <span class="meta">${e(mediaSourceLabel(m))}${mediaPreset(m)?' · '+e(mediaPreset(m)):''}</span>
+    </button>`;
+  }).join('');
+  root.querySelectorAll('[data-social-media-pick]').forEach(b=>b.onclick=()=>toggleSocialMedia(b.dataset.socialMediaPick));
+}
+function updateStoryboardField(index,key,value){
+  if(!socialStoryboard[index])return;
+  socialStoryboard[index]={...socialStoryboard[index],[key]:String(value||'')};
+}
+function renderSocialStoryboard(){
+  const root=$('#socialStoryboard');if(!root)return;
+  if(!socialStoryboard.length){
+    root.innerHTML='<p class="social-storyboard-empty">尚未建立 Storyboard。選擇文章或輸入貼文後，按「AI 規劃輪播」。</p>';return;
+  }
+  const media=selectedSocialMedia();
+  root.innerHTML=socialStoryboard.map((slide,i)=>{
+    const m=media[i];
+    return `<article class="social-story-slide">
+      <div class="social-story-index">${String(i+1).padStart(2,'0')}</div>
+      <div class="social-story-media">${m?`<img src="${e(mediaUrl(m))}" alt="${e(m.alt_text||'')}">`:'<span>待配圖</span>'}</div>
+      <div class="social-story-fields">
+        <div class="social-story-top"><input data-story-field="role" data-story-index="${i}" value="${e(slide.role||'')}" aria-label="第 ${i+1} 張角色"><span>${m?e(m.filename):'尚未指定圖片'}</span></div>
+        <input class="social-story-headline" data-story-field="headline" data-story-index="${i}" value="${e(slide.headline||'')}" placeholder="這張的主標">
+        <textarea data-story-field="body" data-story-index="${i}" placeholder="畫面短文字">${e(slide.body||'')}</textarea>
+        <textarea data-story-field="visual_brief" data-story-index="${i}" placeholder="視覺方向">${e(slide.visual_brief||'')}</textarea>
+      </div>
+    </article>`;
+  }).join('');
+  root.querySelectorAll('[data-story-field]').forEach(el=>el.oninput=()=>updateStoryboardField(Number(el.dataset.storyIndex),el.dataset.storyField,el.value));
+}
+async function generateSocialStoryboard(){
+  const articleId=$('#socialArticle').value;
+  const title=$('#socialTitle').value.trim(),copy=$('#socialCopy').value.trim();
+  if(!articleId&&!title&&!copy)return toast('請先選擇來源文章，或輸入要做成輪播的內容');
+  const btn=$('#generateStoryboardBtn'),old=btn.textContent;btn.disabled=true;btn.textContent='AI 規劃中…';
+  try{
+    const d=await api('/studio/api/admin/social/storyboard',{method:'POST',body:JSON.stringify({
+      platform:$('#socialPlatform').value,
+      article_id:articleId||null,
+      title,copy,
+      slide_count:Number($('#storyboardSlideCount').value||5)
+    })});
+    socialStoryboard=Array.isArray(d.slides)?d.slides:[];
+    renderSocialStoryboard();
+    toast(`Storyboard 已規劃 ${socialStoryboard.length} 張`);
+  }catch(err){toast(err.message)}
+  finally{btn.disabled=false;btn.textContent=old}
+}
+
 function selectedSocialMedia(){
   return socialMediaOrder.map(id=>mediaCache.find(m=>m.id===id)).filter(Boolean);
 }
@@ -996,7 +1101,9 @@ function syncSocialMediaOrderFromSelect(){
   socialMediaOrder=next;
   socialPreviewIndex=Math.min(socialPreviewIndex,Math.max(0,next.length-1));
   syncSocialMediaSelect();
+  renderSocialMediaPicker();
   renderSocialCarousel();
+  renderSocialStoryboard();
   renderSocialPreview();
 }
 function moveSocialMedia(id,targetIndex){
@@ -1006,12 +1113,12 @@ function moveSocialMedia(id,targetIndex){
   next.splice(idx,0,id);
   socialMediaOrder=next;
   socialPreviewIndex=Math.min(socialPreviewIndex,next.length-1);
-  syncSocialMediaSelect();renderSocialCarousel();renderSocialPreview();
+  syncSocialMediaSelect();renderSocialMediaPicker();renderSocialCarousel();renderSocialStoryboard();renderSocialPreview();
 }
 function removeSocialMedia(id){
   socialMediaOrder=socialMediaOrder.filter(x=>x!==id);
   socialPreviewIndex=Math.min(socialPreviewIndex,Math.max(0,socialMediaOrder.length-1));
-  syncSocialMediaSelect();renderSocialCarousel();renderSocialPreview();
+  syncSocialMediaSelect();renderSocialMediaPicker();renderSocialCarousel();renderSocialStoryboard();renderSocialPreview();
 }
 async function editSocialMediaCrop(id){
   show('media');
@@ -1156,7 +1263,7 @@ function resetSocialEditor(){
   $('#socialCopy').value='';
   $('#socialSchedule').value='';
   $('#socialAiBrief').textContent='';
-  socialMediaOrder=[];socialPreviewIndex=0;
+  socialMediaOrder=[];socialPreviewIndex=0;socialStoryboard=[];
   [...$('#socialMedia').options].forEach(o=>o.selected=false);
   $('#saveSocialDraftBtn').textContent='儲存草稿';
   $('#submitSocialDraftBtn').textContent='儲存並送審';
@@ -1174,9 +1281,12 @@ function openSocialEditor(id){
   $('#socialCopy').value=d.copy||'';
   $('#socialSchedule').value=localDateTimeValue(d.scheduled_at);
   socialMediaOrder=(Array.isArray(d.media_ids)?d.media_ids:[]).filter(id=>mediaCache.some(m=>m.id===id)).slice(0,10);
+  socialStoryboard=Array.isArray(d.storyboard)?d.storyboard:[];
   socialPreviewIndex=0;
   syncSocialMediaSelect();
+  renderSocialMediaPicker();
   renderSocialCarousel();
+  renderSocialStoryboard();
   $('#socialEditorTitle').textContent='編輯社群草稿';
   $('#saveSocialDraftBtn').textContent='儲存修改';
   $('#submitSocialDraftBtn').textContent='儲存並送審';
@@ -1197,7 +1307,9 @@ function fillSocialSources(){
   socialMediaOrder=socialMediaOrder.filter(id=>mediaCache.some(m=>m.id===id)).slice(0,10);
   $('#socialMedia').innerHTML=mediaCache.map(m=>`<option value="${e(m.id)}">${e(m.filename)} · ${m.visibility==='public'?'公開':'私人'}</option>`).join('');
   syncSocialMediaSelect();
+  renderSocialMediaPicker();
   renderSocialCarousel();
+  renderSocialStoryboard();
   renderSocialPreview();
 }
 async function generateSocialCopy(){
@@ -1220,7 +1332,7 @@ async function saveSocial(submit){
     const mediaIds=[...socialMediaOrder];
     const scheduleRaw=$('#socialSchedule').value;
     const scheduledAt=scheduleRaw?new Date(scheduleRaw).toISOString():null;
-    const payload={platform:$('#socialPlatform').value,article_id:$('#socialArticle').value||null,title:$('#socialTitle').value,copy:$('#socialCopy').value,media_ids:mediaIds,scheduled_at:scheduledAt};
+    const payload={platform:$('#socialPlatform').value,article_id:$('#socialArticle').value||null,title:$('#socialTitle').value,copy:$('#socialCopy').value,media_ids:mediaIds,storyboard:socialStoryboard,scheduled_at:scheduledAt};
     if(editingSocialId){
       await api('/studio/api/admin/social/'+editingSocialId,{method:'PATCH',body:JSON.stringify(payload)});
       if(submit) await api('/studio/api/admin/social/'+editingSocialId+'/submit',{method:'POST',body:'{}'});
@@ -1252,7 +1364,7 @@ $('#socialPlatform').onchange=()=>{
   if(changed){
     socialMediaOrder=mapped.slice(0,10);
     socialPreviewIndex=0;
-    syncSocialMediaSelect();renderSocialCarousel();
+    syncSocialMediaSelect();renderSocialMediaPicker();renderSocialCarousel();renderSocialStoryboard();
     $('#socialAiBrief').textContent='已依新平台自動切換輪播內可用的較適合比例版本。';
   }
   renderSocialPreview();
@@ -1260,8 +1372,10 @@ $('#socialPlatform').onchange=()=>{
 $('#socialTitle').oninput=renderSocialPreview;
 $('#socialCopy').oninput=renderSocialPreview;
 $('#socialMedia').onchange=syncSocialMediaOrderFromSelect;
+$('#socialMediaSearch').oninput=renderSocialMediaPicker;
+$('#generateStoryboardBtn').onclick=generateSocialStoryboard;
 $('#clearSocialMediaBtn').onclick=()=>{
-  socialMediaOrder=[];socialPreviewIndex=0;syncSocialMediaSelect();renderSocialCarousel();renderSocialPreview();
+  socialMediaOrder=[];socialPreviewIndex=0;syncSocialMediaSelect();renderSocialMediaPicker();renderSocialCarousel();renderSocialStoryboard();renderSocialPreview();
 };
 $('#generateSocialCopyBtn').onclick=generateSocialCopy;
 $('#saveSocialDraftBtn').onclick=()=>saveSocial(false);

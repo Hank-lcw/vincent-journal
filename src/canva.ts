@@ -15,8 +15,8 @@ async function api(token:string,path:string,init:RequestInit={}):Promise<any>{
 export async function listBrandTemplates(env:Env,user:AuthUser,query=''):Promise<any>{
   requireRole(user,'editor');
   const {token}=await getIntegrationToken(env,'canva');
-  const qs=new URLSearchParams(); if(query) qs.set('query',query.slice(0,120));
-  return api(token,`/brand-templates${qs.toString()?`?${qs}`:''}`);
+  const qs=new URLSearchParams({dataset:'non_empty',limit:'100',sort_by:'modified_descending'}); if(query) qs.set('query',query.slice(0,120));
+  return api(token,`/brand-templates?${qs}`);
 }
 export async function brandTemplateDataset(env:Env,user:AuthUser,id:string):Promise<any>{
   requireRole(user,'editor'); const {token}=await getIntegrationToken(env,'canva');

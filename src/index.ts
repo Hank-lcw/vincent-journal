@@ -4,7 +4,7 @@ import { requireUser } from './auth';
 import { listStaff, upsertStaff, updateStaff } from './staff';
 import { listAdminArticles, listPublicArticles, getPublicArticle, createArticle, updateArticle, transitionArticle, listArticleRevisions, restoreArticleRevision } from './articles';
 import { listMedia, uploadMedia, serveMedia, generateImage, editImage, setMediaVisibility } from './media';
-import { subscribe, verifySubscription, unsubscribe, handleResendWebhook, listSubscribers, listNewsletterCampaigns, createNewsletterCampaign, approveNewsletter, sendNewsletter, getResendDomainStatus } from './newsletter';
+import { subscribe, verifySubscription, unsubscribe, handleResendWebhook, listSubscribers, listNewsletterCampaigns, createNewsletterCampaign, updateNewsletterCampaign, submitNewsletter, rejectNewsletter, approveNewsletter, sendNewsletter, getResendDomainStatus } from './newsletter';
 import { listIntegrations, startOAuth, handleOAuthCallback, disconnectIntegration, systemIntegrationStatus } from './integrations';
 import { listBrandTemplates, brandTemplateDataset, createAutofill, getAutofillJob, attachCanvaDesign, uploadPublicAssetToCanva, getCanvaAssetUploadJob } from './canva';
 import { listSocialDrafts, createSocialDraft, updateSocialDraft, submitSocialDraft, approveSocialDraft, publishSocialDraft, generateSocialCopy } from './social';
@@ -92,6 +92,9 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
     if(method==='GET' && p==='/api/admin/newsletter/subscribers') return json({subscribers:await listSubscribers(env,user)});
     if(method==='GET' && p==='/api/admin/newsletter/campaigns') return json({campaigns:await listNewsletterCampaigns(env,user)});
     if(method==='POST' && p==='/api/admin/newsletter/campaigns') return json({campaign:await createNewsletterCampaign(env,request,user,await readJson(request))},201);
+    if(method==='PATCH' && seg[2]==='newsletter' && seg[3]==='campaigns' && seg[4] && seg.length===5) return json({campaign:await updateNewsletterCampaign(env,request,user,seg[4],await readJson(request))});
+    if(method==='POST' && seg[2]==='newsletter' && seg[3]==='campaigns' && seg[4] && seg[5]==='submit') return json({campaign:await submitNewsletter(env,request,user,seg[4])});
+    if(method==='POST' && seg[2]==='newsletter' && seg[3]==='campaigns' && seg[4] && seg[5]==='reject') return json({campaign:await rejectNewsletter(env,request,user,seg[4])});
     if(method==='POST' && seg[2]==='newsletter' && seg[3]==='campaigns' && seg[4] && seg[5]==='approve') return json({campaign:await approveNewsletter(env,request,user,seg[4])});
     if(method==='POST' && seg[2]==='newsletter' && seg[3]==='campaigns' && seg[4] && seg[5]==='send') return json({campaign:await sendNewsletter(env,request,user,seg[4],await readJson(request).catch(()=>({})))});
 

@@ -71,7 +71,10 @@ export async function generateImage(env: Env, request: Request, user: AuthUser, 
   const prompt = String(input.prompt || '').trim();
   if (prompt.length < 8 || prompt.length > 3500) throw new HttpError(400, '圖片描述需介於 8–3500 字元');
   const size = ['1024x1024','1536x1024','1024x1536'].includes(input.size) ? input.size : '1536x1024';
-  const model = input.model === 'gpt-image-2.5-sunburst' ? 'gpt-image-2.5-sunburst' : 'gpt-image-2.5-flare';
+  const allowedModels=new Set(['gpt-image-2','gpt-image-2.5-flare','gpt-image-2.5-sunburst']);
+  const configured=env.OPENAI_IMAGE_MODEL||'gpt-image-2.5-flare';
+  const requested=String(input.model||configured);
+  const model=allowedModels.has(requested)?requested:configured;
   const res = await fetch('https://api.openai.com/v1/images/generations', {
     method:'POST',
     headers:{'authorization':`Bearer ${env.OPENAI_API_KEY}`,'content-type':'application/json'},
@@ -94,7 +97,8 @@ export async function editImage(env: Env, request: Request, user: AuthUser, inpu
   const object = await env.MEDIA.get(source.object_key);
   if (!object) throw new HttpError(404, '原始圖片檔案不存在');
   const body = new FormData();
-  body.set('model','gpt-image-2.5-sunburst');
+  const editModel=env.OPENAI_IMAGE_EDIT_MODEL||'gpt-image-2.5-sunburst';
+  body.set('model',editModel);
   body.set('prompt', `${editorialGuard}\n\nEdit request: ${prompt}`);
   body.set('image', new File([await object.arrayBuffer()], source.filename || 'source.webp', {type:source.mime_type || 'image/webp'}));
   body.set('output_format','webp');
@@ -103,7 +107,7 @@ export async function editImage(env: Env, request: Request, user: AuthUser, inpu
   if (!res.ok) throw new HttpError(502, `AI 圖片修改失敗：${data?.error?.message || res.status}`);
   const b64 = data?.data?.[0]?.b64_json;
   if (!b64) throw new HttpError(502, 'AI 沒有回傳修改圖片');
-  return storeAiResult(env,user,request,b64,prompt,'gpt-image-2.5-sunburst',mediaId,'image/webp');
+  return storeAiResult(env,user,request,b64,prompt,editModel,mediaId,'image/webp');
 }
 
 export async function setMediaVisibility(env: Env, request: Request, user: AuthUser, id: string, visibility: 'private'|'public'): Promise<any> {

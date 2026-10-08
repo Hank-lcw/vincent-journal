@@ -383,10 +383,25 @@ async function loadSystem(){
     ]);
     const cfg=s.configured||{};
     const items={Cloudflare_Access:cfg.access,Token_Encryption:cfg.encryption,OpenAI_Images:cfg.openai,Resend:cfg.resend,Canva:cfg.canva,Meta:cfg.meta,Threads:cfg.threads,Turnstile:cfg.turnstile};
-    $('#systemRows').innerHTML=Object.entries(items).map(([k,v])=>`<div class="status-row"><span>${e(k.replaceAll('_',' '))}</span><span class="badge ${v?'':'warn'}">${v?'已設定':'待設定'}</span></div>`).join('')+`<div class="status-row"><span>寄件網域</span><span class="badge ${s.email_domain?.configured?'':'warn'}">${e(s.email_domain?.status||s.email_domain?.reason||'待設定')}</span></div>`;
+    const baseRows=Object.entries(items).map(([k,v])=>`<div class="status-row"><span>${e(k.replaceAll('_',' '))}</span><span class="badge ${v?'':'warn'}">${v?'已設定':'待設定'}</span></div>`).join('')+
+      `<div class="status-row"><span>寄件網域</span><span class="badge ${s.email_domain?.configured?'':'warn'}">${e(s.email_domain?.status||s.email_domain?.reason||'待設定')}</span></div>`;
+    const integrations=(s.integrations||[]).filter(x=>x.status!=='disconnected');
+    const integrationRows=integrations.length?`<div style="margin-top:20px"><div class="meta">已連線帳號</div>${integrations.map(x=>`<div class="integration-row"><div><strong>${e(x.provider)}</strong><div class="meta">${e(x.account_label||x.external_account_id||'')}</div></div><div class="studio-actions"><span class="badge ${x.status==='connected'?'':'warn'}">${e(x.status)}</span>${canAdmin()?`<button class="btn" data-disconnect-integration="${e(x.id)}">中斷連線</button>`:''}</div></div>`).join('')}</div>`:'';
+    $('#systemRows').innerHTML=baseRows+integrationRows;
+
     $('#staffForm').style.display=canAdmin()?'grid':'none';
-    $('#staffTable').innerHTML=canAdmin()?`<table class="table"><thead><tr><th>Email</th><th>名稱</th><th>角色</th><th>狀態</th></tr></thead><tbody>${(staff.staff||[]).map(x=>`<tr><td>${e(x.email)}</td><td>${e(x.display_name||'')}</td><td>${e(x.role)}</td><td>${x.is_active?'啟用':'停用'}</td></tr>`).join('')}</tbody></table>`:'<p class="empty-state">此角色沒有管理員管理權限。</p>';
+    const roles=['editor','reviewer','admin','owner'];
+    $('#staffTable').innerHTML=canAdmin()?`<table class="table"><thead><tr><th>Email</th><th>名稱</th><th>角色</th><th>狀態</th><th>操作</th></tr></thead><tbody>${(staff.staff||[]).map(x=>{
+      const locked=x.role==='owner'&&me?.role!=='owner';
+      const roleOptions=roles.filter(r=>me?.role==='owner'||r!=='owner').map(r=>`<option value="${r}" ${r===x.role?'selected':''}>${r}</option>`).join('');
+      const selfDeactivate=x.id===me?.id&&x.is_active;
+      return `<tr><td>${e(x.email)}</td><td>${e(x.display_name||'')}</td><td><select data-staff-role="${e(x.id)}" ${locked?'disabled':''}>${roleOptions}</select></td><td>${x.is_active?'啟用':'停用'}</td><td><div class="studio-actions"><button class="btn" data-staff-save="${e(x.id)}" ${locked?'disabled':''}>儲存角色</button><button class="btn" data-staff-toggle="${e(x.id)}" data-next="${x.is_active?'0':'1'}" ${locked||selfDeactivate?'disabled':''}>${x.is_active?'停用':'啟用'}</button></div></td></tr>`;
+    }).join('')}</tbody></table>`:'<p class="empty-state">此角色沒有管理員管理權限。</p>';
     $('#backupList').innerHTML=(backups.backups||[]).slice(0,8).map(b=>`<div class="status-row"><span>${e((b.started_at||'').slice(0,16))}</span><span class="badge ${b.status==='completed'?'':'warn'}">${e(b.status)}</span></div>`).join('');
+
+    $$('[data-disconnect-integration]').forEach(b=>b.onclick=async()=>{try{await api('/studio/api/admin/integrations/'+b.dataset.disconnectIntegration+'/disconnect',{method:'POST',body:'{}'});toast('整合已中斷');loadSystem()}catch(err){toast(err.message)}});
+    $$('[data-staff-save]').forEach(b=>b.onclick=async()=>{try{const id=b.dataset.staffSave,sel=document.querySelector('[data-staff-role="'+id+'"]');await api('/studio/api/admin/staff/'+id,{method:'PATCH',body:JSON.stringify({role:sel.value})});toast('角色已更新');loadSystem()}catch(err){toast(err.message)}});
+    $$('[data-staff-toggle]').forEach(b=>b.onclick=async()=>{try{const id=b.dataset.staffToggle,next=b.dataset.next==='1';await api('/studio/api/admin/staff/'+id,{method:'PATCH',body:JSON.stringify({is_active:next})});toast(next?'管理員已啟用':'管理員已停用');loadSystem()}catch(err){toast(err.message)}});
   }catch(err){toast(err.message)}
 }
 $('#addStaffBtn').onclick=async()=>{if(!canAdmin())return;try{await api('/studio/api/admin/staff',{method:'POST',body:JSON.stringify({email:$('#staffEmail').value,display_name:$('#staffName').value,role:$('#staffRole').value})});toast('管理員資料已更新');$('#staffEmail').value='';$('#staffName').value='';loadSystem()}catch(err){toast(err.message)}};

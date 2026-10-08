@@ -20,13 +20,13 @@ GitHub Actions 已加保護：在 Cloudflare Secrets 尚未設定時，deploy jo
 - [ ] 替換 `PUBLIC_BASE_URL`、OAuth redirect URI、`MAIL_FROM`
 
 ## 2. Cloudflare Access
-- [ ] 建立 Self-hosted Access Application
-- [ ] 保護 `/studio*`
+- [x] 建立 Self-hosted Access Application
+- [x] 保護 `/studio`
 - [x] Studio 改為單一 Access prefix：保護 `/studio*`（涵蓋 `/studio/api/admin/*`）
-- [ ] 只允許管理員 Email / IdP group
-- [ ] 填入 `TEAM_DOMAIN`
-- [ ] 填入 Application `POLICY_AUD`
-- [ ] 填入第一位 Owner 的 `BOOTSTRAP_ADMIN_EMAIL`
+- [x] 只允許管理員 Email / IdP group
+- [x] 填入 `TEAM_DOMAIN`
+- [x] 填入 Application `POLICY_AUD`
+- [x] 填入第一位 Owner 的 `BOOTSTRAP_ADMIN_EMAIL`
 
 Worker 會再次驗證 `Cf-Access-Jwt-Assertion`，不是只依賴前方 Access route。
 
@@ -46,8 +46,8 @@ Worker 會再次驗證 `Cf-Access-Jwt-Assertion`，不是只依賴前方 Access 
 - [ ] `TURNSTILE_SECRET_KEY`（建議）
 
 ## 4. Database
-- [ ] 執行 remote migration
-- [ ] 首次以 bootstrap owner 登入
+- [x] 執行 remote migration
+- [x] 首次以 bootstrap owner 登入
 - [ ] 建立 Editor / Reviewer / Admin
 - [ ] 測試 Editor 不可自行核准與發布
 
@@ -101,7 +101,7 @@ Worker 會再次驗證 `Cf-Access-Jwt-Assertion`，不是只依賴前方 Access 
 ## Runtime D1
 - [x] Auto-provisioned production D1: `vincent-journal-runtime`
 - [x] Database ID pinned: `50dc4b25-df3a-4cfd-b496-a037ac65a999`
-- [ ] Cloudflare Build deploy command changed to `npm run deploy:cloudflare`
+- [x] Cloudflare Build deploy command changed to `npm run deploy:cloudflare`
 - [x] Confirm migration creates the production tables (verified via sqlite_master; table_count = 19)
 
 - [ ] Fresh production build after secrets／deploy-command 確認
@@ -112,7 +112,7 @@ Worker 會再次驗證 `Cf-Access-Jwt-Assertion`，不是只依賴前方 Access 
 - [ ] Create path-scoped Access protection for `/studio*`
 - [ ] Allow only `andyhank1234567890@gmail.com`
 - [x] Record Team Domain and Application AUD in `wrangler.jsonc`
-- [ ] Verify first login bootstraps owner role
+- [x] Verify first login bootstraps owner role
 
 ### Access JWT values
 - Team Domain: `https://andyhank1234567890.cloudflareaccess.com`

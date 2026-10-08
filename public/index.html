@@ -7,11 +7,45 @@
 <meta name="theme-color" content="#f7f5f0">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Noto+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="experience.css">
-<script defer src="data.js"></script><script defer src="app.js"></script><script defer src="experience.js"></script>
+<link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="experience.css"><link rel="stylesheet" href="portal-intro.css">
+<script defer src="data.js"></script><script defer src="app.js"></script><script defer src="experience.js"></script><script defer src="portal-intro.js"></script>
 </head>
 <body data-page="home">
-<header class="site-header shell">
+<section id="vjPortalIntro" class="vj-portal-intro" aria-label="VINCENT JOURNAL 字體穿透開場">
+ <div class="vjp-sticky">
+  <div class="vjp-bg" aria-hidden="true"></div>
+  <div class="vjp-meta"><strong>VINCENT JOURNAL</strong><br>AESTHETICS · HEALTHY AGING<br>LONGEVITY · PERSPECTIVES</div>
+  <svg class="vjp-svg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+   <defs><mask id="vjpLetterMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1440" height="900">
+    <g id="vjpZoom"><g id="vjpLetters" fill="white">
+     <text class="vjp-glyph-text" x="720" y="438" text-anchor="middle" textLength="1260" lengthAdjust="spacingAndGlyphs" font-size="205">VINCENT</text>
+     <text class="vjp-glyph-text" x="720" y="636" text-anchor="middle" textLength="1260" lengthAdjust="spacingAndGlyphs" font-size="205">JOURNAL</text>
+    </g></g>
+   </mask></defs>
+   <g mask="url(#vjpLetterMask)">
+    <rect x="-4000" y="-4000" width="10000" height="10000" fill="#232421"/>
+    <image id="vjpInsidePortrait" href="assets/vj-portal-warm-portrait.svg" x="0" y="0" width="1440" height="900" preserveAspectRatio="xMidYMid slice" opacity="0"/>
+    <rect id="vjpInsideTint" x="-4000" y="-4000" width="10000" height="10000" fill="#d8c7b7" opacity="0"/>
+   </g>
+  </svg>
+  <div class="vjp-cover" role="img" aria-label="暖色雕塑式男性側臉美學插畫"></div>
+  <div class="vjp-cover-shade" aria-hidden="true"></div>
+  <div class="vjp-grain" aria-hidden="true"></div>
+  <div class="vjp-subtitle">A JOURNAL OF AESTHETICS &amp; MEDICINE</div>
+  <div class="vjp-hint" aria-hidden="true">SCROLL TO ENTER <span class="vjp-hint-line"></span></div>
+  <div class="vjp-caption">
+   <p class="vjp-kicker">VINCENT JOURNAL / THE EDITORIAL</p>
+   <h2>美學，是另一種觀看。</h2>
+   <p>關於美學、健康老化與時間的獨立觀察。</p>
+   <a class="vjp-enter" href="#vj-home-start">進入 VINCENT JOURNAL <span aria-hidden="true">↗</span></a>
+  </div>
+  <div class="vjp-progress" aria-hidden="true"><div class="vjp-progress-bar"></div></div>
+  <div class="vjp-percentage" aria-hidden="true">000%</div>
+  <div class="vjp-scene" aria-hidden="true">01 / 06</div>
+  <a class="vjp-skip" href="#vj-home-start">略過開場 SKIP INTRO</a>
+ </div>
+</section>
+<header class="site-header shell" id="vj-home-start">
  <div class="masthead-meta"><span>TAIPEI, TAIWAN <i>·</i> AN INDEPENDENT JOURNAL</span><span>VOL. 001 <i>·</i> 2026</span><button class="text-icon" id="searchOpen" aria-label="搜尋文章">⌕ <span>搜尋</span></button></div>
  <a class="wordmark" href="index.html" aria-label="VINCENT JOURNAL 首頁">VINCENT <span>JOURNAL</span></a>
  <p class="brand-subtitle">AESTHETICS <b>·</b> HEALTHY AGING <b>·</b> LONGEVITY</p>

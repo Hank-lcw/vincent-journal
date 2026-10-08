@@ -20,6 +20,7 @@ export function html(body: string, status = 200, headers: HeadersInit = {}): Res
     status,
     headers: {
       'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
       ...headers,
     },
   });

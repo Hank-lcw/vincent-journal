@@ -63,6 +63,7 @@ function articleActionButtons(a){
     out.push(`<button class="btn primary" data-article-action="publish" data-id="${e(a.id)}">發布</button>`);
     out.push(`<button class="btn" data-article-action="reject" data-id="${e(a.id)}">退回草稿</button>`);
   }
+  if(canAdmin() && (a.status!=='published' || me?.role==='owner')) out.push(`<button class="btn danger" data-delete-article="${e(a.id)}">刪除</button>`);
   return out.join(' ');
 }
 async function runArticleAction(id,action){
@@ -82,6 +83,18 @@ function bindArticleActions(root=document){
   root.querySelectorAll?.('[data-article-action]').forEach(b=>b.onclick=()=>runArticleAction(b.dataset.id,b.dataset.articleAction));
   root.querySelectorAll?.('[data-edit-article]').forEach(b=>b.onclick=()=>openArticleEditor(b.dataset.editArticle));
   root.querySelectorAll?.('[data-revisions]').forEach(b=>b.onclick=()=>showRevisions(b.dataset.revisions));
+  root.querySelectorAll?.('[data-delete-article]').forEach(b=>b.onclick=()=>deleteArticleFromStudio(b.dataset.deleteArticle));
+}
+async function deleteArticleFromStudio(id){
+  const a=articlesCache.find(x=>x.id===id); if(!a)return;
+  const extra=a.status==='published'?'\n\n這篇文章目前已發布；刪除後會立即從前台移除，引用它的期刊會退回草稿。':'';
+  if(!window.confirm(`確定永久刪除「${a.title}」？\n\n這個操作無法復原。${extra}`))return;
+  try{
+    await api('/studio/api/admin/articles/'+id,{method:'DELETE'});
+    toast('文章已永久刪除');
+    if(editingArticleId===id)closeArticleEditor();
+    await Promise.all([loadArticles(),loadPublish(),loadStatus()]);
+  }catch(err){toast(err.message)}
 }
 async function openArticleEditor(id=null){
   try{

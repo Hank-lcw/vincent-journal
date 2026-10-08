@@ -132,6 +132,12 @@ export async function handleResendWebhook(env: Env, request: Request): Promise<{
   const event:any=JSON.parse(payload), providerId=request.headers.get('svix-id') || event?.data?.email_id || uuid();
   const inserted=await env.DB.prepare(`INSERT OR IGNORE INTO webhook_events (id,provider,provider_event_id,event_type,payload_json,created_at) VALUES (?,'resend',?,?,?,?)`).bind(uuid(),providerId,String(event.type||'unknown'),payload,nowIso()).run();
   if (!inserted.meta.changes) return {ok:true};
+  const broadcastId=String(event?.data?.broadcast_id||'').trim();
+  if(broadcastId && ['email.sent','email.delivered','email.bounced','email.complained','email.failed'].includes(String(event.type||''))){
+    const sentAt=String(event?.created_at||event?.data?.created_at||nowIso());
+    await env.DB.prepare(`UPDATE newsletter_campaigns SET status='sent',sent_at=COALESCE(sent_at,?),updated_at=? WHERE provider_broadcast_id=? AND status IN ('scheduled','sending','sent')`)
+      .bind(sentAt,nowIso(),broadcastId).run();
+  }
   const email=normalizeEmail(String(event?.data?.to?.[0] || event?.data?.contact?.email || event?.data?.email || ''));
   if(email && validEmail(email)){
     if(['email.bounced','email.complained','email.suppressed','suppression.added'].includes(event.type)){

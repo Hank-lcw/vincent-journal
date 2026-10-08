@@ -152,7 +152,7 @@ export async function listSubscribers(env: Env, user: AuthUser): Promise<any[]> 
 }
 export async function listNewsletterCampaigns(env:Env,user:AuthUser):Promise<any[]> {
   requireRole(user,'editor');
-  const {results}=await env.DB.prepare(`SELECT id,issue_id,subject,preview_text,status,provider_broadcast_id,scheduled_at,sent_at,created_at,updated_at FROM newsletter_campaigns ORDER BY created_at DESC LIMIT 100`).all();
+  const {results}=await env.DB.prepare(`SELECT id,issue_id,subject,preview_text,html,text_body,status,provider_broadcast_id,scheduled_at,sent_at,created_at,updated_at FROM newsletter_campaigns ORDER BY created_at DESC LIMIT 100`).all();
   return results||[];
 }
 export async function createNewsletterCampaign(env: Env, request: Request, user: AuthUser, input:any): Promise<any> {
@@ -164,7 +164,50 @@ export async function createNewsletterCampaign(env: Env, request: Request, user:
   const id=uuid(), now=nowIso(), status=input.submit_for_review?'in_review':'draft';
   await env.DB.prepare(`INSERT INTO newsletter_campaigns (id,issue_id,subject,preview_text,html,text_body,status,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`)
     .bind(id,input.issue_id||null,subject.slice(0,200),String(input.preview_text||'').slice(0,300),htmlBody,String(input.text_body||''),status,user.id,now,now).run();
+  if(status==='in_review') await env.DB.prepare(`INSERT INTO approvals (id,entity_type,entity_id,action,note,actor_id,created_at) VALUES (?,'newsletter',?,'submit','',?,?)`).bind(uuid(),id,user.id,now).run();
   await audit(env,request,user,'newsletter.create','newsletter',id,{status});
+  return env.DB.prepare(`SELECT * FROM newsletter_campaigns WHERE id=?`).bind(id).first();
+}
+
+export async function updateNewsletterCampaign(env:Env,request:Request,user:AuthUser,id:string,input:any):Promise<any>{
+  requireRole(user,'editor');
+  const row=await env.DB.prepare(`SELECT * FROM newsletter_campaigns WHERE id=?`).bind(id).first<any>();
+  if(!row) throw new HttpError(404,'找不到電子報');
+  if(!['draft','in_review'].includes(row.status)) throw new HttpError(409,'只有草稿或待審電子報可以修改');
+  const subject=input.subject!==undefined?String(input.subject).trim().slice(0,200):row.subject;
+  const preview=input.preview_text!==undefined?String(input.preview_text).slice(0,300):row.preview_text;
+  const htmlBody=input.html!==undefined?String(input.html):row.html;
+  const textBody=input.text_body!==undefined?String(input.text_body):row.text_body;
+  if(!subject) throw new HttpError(400,'電子報主旨不可空白');
+  const nextStatus=row.status==='in_review'?'draft':row.status;
+  await env.DB.prepare(`UPDATE newsletter_campaigns SET subject=?,preview_text=?,html=?,text_body=?,status=?,approved_by=NULL,updated_at=? WHERE id=?`)
+    .bind(subject,preview,htmlBody,textBody,nextStatus,nowIso(),id).run();
+  await audit(env,request,user,'newsletter.update','newsletter',id,{previous_status:row.status,next_status:nextStatus});
+  return env.DB.prepare(`SELECT * FROM newsletter_campaigns WHERE id=?`).bind(id).first();
+}
+
+export async function submitNewsletter(env:Env,request:Request,user:AuthUser,id:string):Promise<any>{
+  requireRole(user,'editor');
+  const row=await env.DB.prepare(`SELECT * FROM newsletter_campaigns WHERE id=?`).bind(id).first<any>();
+  if(!row) throw new HttpError(404,'找不到電子報');
+  if(row.status!=='draft') throw new HttpError(409,'只有草稿可以送審');
+  if(!String(row.subject||'').trim() || !String(row.html||'').trim()) throw new HttpError(409,'送審前請完成主旨與 HTML 內容');
+  const now=nowIso();
+  await env.DB.prepare(`UPDATE newsletter_campaigns SET status='in_review',approved_by=NULL,updated_at=? WHERE id=?`).bind(now,id).run();
+  await env.DB.prepare(`INSERT INTO approvals (id,entity_type,entity_id,action,note,actor_id,created_at) VALUES (?,'newsletter',?,'submit','',?,?)`).bind(uuid(),id,user.id,now).run();
+  await audit(env,request,user,'newsletter.submit','newsletter',id);
+  return env.DB.prepare(`SELECT * FROM newsletter_campaigns WHERE id=?`).bind(id).first();
+}
+
+export async function rejectNewsletter(env:Env,request:Request,user:AuthUser,id:string):Promise<any>{
+  requireRole(user,'reviewer');
+  const row=await env.DB.prepare(`SELECT * FROM newsletter_campaigns WHERE id=?`).bind(id).first<any>();
+  if(!row) throw new HttpError(404,'找不到電子報');
+  if(!['in_review','approved'].includes(row.status)) throw new HttpError(409,'目前狀態無法退回');
+  const now=nowIso();
+  await env.DB.prepare(`UPDATE newsletter_campaigns SET status='draft',approved_by=NULL,updated_at=? WHERE id=?`).bind(now,id).run();
+  await env.DB.prepare(`INSERT INTO approvals (id,entity_type,entity_id,action,note,actor_id,created_at) VALUES (?,'newsletter',?,'reject','',?,?)`).bind(uuid(),id,user.id,now).run();
+  await audit(env,request,user,'newsletter.reject','newsletter',id,{previous_status:row.status});
   return env.DB.prepare(`SELECT * FROM newsletter_campaigns WHERE id=?`).bind(id).first();
 }
 export async function approveNewsletter(env:Env,request:Request,user:AuthUser,id:string):Promise<any>{
@@ -172,7 +215,9 @@ export async function approveNewsletter(env:Env,request:Request,user:AuthUser,id
   const row=await env.DB.prepare(`SELECT * FROM newsletter_campaigns WHERE id=?`).bind(id).first<any>();
   if(!row) throw new HttpError(404,'找不到電子報');
   if(row.status!=='in_review') throw new HttpError(409,'只有待審電子報可以核准');
-  await env.DB.prepare(`UPDATE newsletter_campaigns SET status='approved',approved_by=?,updated_at=? WHERE id=?`).bind(user.id,nowIso(),id).run();
+  const now=nowIso();
+  await env.DB.prepare(`UPDATE newsletter_campaigns SET status='approved',approved_by=?,updated_at=? WHERE id=?`).bind(user.id,now,id).run();
+  await env.DB.prepare(`INSERT INTO approvals (id,entity_type,entity_id,action,note,actor_id,created_at) VALUES (?,'newsletter',?,'approve','',?,?)`).bind(uuid(),id,user.id,now).run();
   await audit(env,request,user,'newsletter.approve','newsletter',id);
   return env.DB.prepare(`SELECT * FROM newsletter_campaigns WHERE id=?`).bind(id).first();
 }
@@ -186,7 +231,9 @@ export async function sendNewsletter(env:Env,request:Request,user:AuthUser,id:st
   const htmlBody = row.html.includes('RESEND_UNSUBSCRIBE_URL') ? row.html : `${row.html}<p style="margin-top:48px;font-size:12px;color:#777">不想再收到這類內容？<a href="{{{RESEND_UNSUBSCRIBE_URL}}}">取消訂閱</a></p>`;
   const data=await resendFetch(env,'/broadcasts',{method:'POST',body:JSON.stringify({segment_id:env.RESEND_SEGMENT_ID,from:env.MAIL_FROM,subject:row.subject,html:htmlBody,text:row.text_body||undefined,send:true,scheduled_at:scheduledAt})});
   const status=scheduledAt?'scheduled':'sending';
-  await env.DB.prepare(`UPDATE newsletter_campaigns SET status=?,provider_broadcast_id=?,scheduled_at=?,updated_at=? WHERE id=?`).bind(status,data?.id||null,scheduledAt||null,nowIso(),id).run();
+  const now=nowIso();
+  await env.DB.prepare(`UPDATE newsletter_campaigns SET status=?,provider_broadcast_id=?,scheduled_at=?,updated_at=? WHERE id=?`).bind(status,data?.id||null,scheduledAt||null,now,id).run();
+  await env.DB.prepare(`INSERT INTO approvals (id,entity_type,entity_id,action,note,actor_id,created_at) VALUES (?,'newsletter',?,'publish','',?,?)`).bind(uuid(),id,user.id,now).run();
   await audit(env,request,user,'newsletter.send','newsletter',id,{providerBroadcastId:data?.id||null,scheduledAt});
   return {...row,status,provider_broadcast_id:data?.id||null,scheduled_at:scheduledAt||null};
 }

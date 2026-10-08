@@ -150,6 +150,13 @@ export async function listSubscribers(env: Env, user: AuthUser): Promise<any[]> 
   const {results}=await env.DB.prepare(`SELECT id,email,status,verified_at,unsubscribed_at,source,consent_at,created_at,updated_at FROM subscribers ORDER BY created_at DESC LIMIT 1000`).all();
   return results||[];
 }
+function normalizeCampaignSchedule(value:any):string|null{
+  if(value===undefined||value===null||value==='') return null;
+  const d=new Date(String(value));
+  if(Number.isNaN(d.getTime())) throw new HttpError(400,'scheduled_at 格式無效');
+  return d.toISOString();
+}
+
 export async function listNewsletterCampaigns(env:Env,user:AuthUser):Promise<any[]> {
   requireRole(user,'editor');
   const {results}=await env.DB.prepare(`SELECT id,issue_id,subject,preview_text,html,text_body,status,provider_broadcast_id,scheduled_at,sent_at,created_at,updated_at FROM newsletter_campaigns ORDER BY created_at DESC LIMIT 100`).all();
@@ -161,9 +168,10 @@ export async function createNewsletterCampaign(env: Env, request: Request, user:
   const htmlBody=String(input.html||'').trim();
   if(!subject) throw new HttpError(400,'電子報主旨不可空白');
   if(input.submit_for_review && !htmlBody) throw new HttpError(400,'送審前請先完成電子報內容');
+  const scheduledAt=normalizeCampaignSchedule(input.scheduled_at);
   const id=uuid(), now=nowIso(), status=input.submit_for_review?'in_review':'draft';
-  await env.DB.prepare(`INSERT INTO newsletter_campaigns (id,issue_id,subject,preview_text,html,text_body,status,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`)
-    .bind(id,input.issue_id||null,subject.slice(0,200),String(input.preview_text||'').slice(0,300),htmlBody,String(input.text_body||''),status,user.id,now,now).run();
+  await env.DB.prepare(`INSERT INTO newsletter_campaigns (id,issue_id,subject,preview_text,html,text_body,status,scheduled_at,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
+    .bind(id,input.issue_id||null,subject.slice(0,200),String(input.preview_text||'').slice(0,300),htmlBody,String(input.text_body||''),status,scheduledAt,user.id,now,now).run();
   if(status==='in_review') await env.DB.prepare(`INSERT INTO approvals (id,entity_type,entity_id,action,note,actor_id,created_at) VALUES (?,'newsletter',?,'submit','',?,?)`).bind(uuid(),id,user.id,now).run();
   await audit(env,request,user,'newsletter.create','newsletter',id,{status});
   return env.DB.prepare(`SELECT * FROM newsletter_campaigns WHERE id=?`).bind(id).first();
@@ -178,10 +186,11 @@ export async function updateNewsletterCampaign(env:Env,request:Request,user:Auth
   const preview=input.preview_text!==undefined?String(input.preview_text).slice(0,300):row.preview_text;
   const htmlBody=input.html!==undefined?String(input.html):row.html;
   const textBody=input.text_body!==undefined?String(input.text_body):row.text_body;
+  const scheduledAt=input.scheduled_at!==undefined?normalizeCampaignSchedule(input.scheduled_at):row.scheduled_at;
   if(!subject) throw new HttpError(400,'電子報主旨不可空白');
   const nextStatus=row.status==='in_review'?'draft':row.status;
-  await env.DB.prepare(`UPDATE newsletter_campaigns SET subject=?,preview_text=?,html=?,text_body=?,status=?,approved_by=NULL,updated_at=? WHERE id=?`)
-    .bind(subject,preview,htmlBody,textBody,nextStatus,nowIso(),id).run();
+  await env.DB.prepare(`UPDATE newsletter_campaigns SET subject=?,preview_text=?,html=?,text_body=?,scheduled_at=?,status=?,approved_by=NULL,updated_at=? WHERE id=?`)
+    .bind(subject,preview,htmlBody,textBody,scheduledAt,nextStatus,nowIso(),id).run();
   await audit(env,request,user,'newsletter.update','newsletter',id,{previous_status:row.status,next_status:nextStatus});
   return env.DB.prepare(`SELECT * FROM newsletter_campaigns WHERE id=?`).bind(id).first();
 }
@@ -227,7 +236,8 @@ export async function sendNewsletter(env:Env,request:Request,user:AuthUser,id:st
   if(!row) throw new HttpError(404,'找不到電子報');
   if(row.status!=='approved') throw new HttpError(409,'電子報必須先完成審核');
   if(!env.RESEND_SEGMENT_ID || env.RESEND_SEGMENT_ID.includes('REPLACE_')) throw new HttpError(503,'RESEND_SEGMENT_ID 尚未設定');
-  const scheduledAt=input?.scheduled_at?String(input.scheduled_at):undefined;
+  const requestedSchedule=input?.scheduled_at?normalizeCampaignSchedule(input.scheduled_at):null;
+  const scheduledAt=requestedSchedule && new Date(requestedSchedule).getTime()>Date.now()+60_000 ? requestedSchedule : undefined;
   const htmlBody = row.html.includes('RESEND_UNSUBSCRIBE_URL') ? row.html : `${row.html}<p style="margin-top:48px;font-size:12px;color:#777">不想再收到這類內容？<a href="{{{RESEND_UNSUBSCRIBE_URL}}}">取消訂閱</a></p>`;
   const data=await resendFetch(env,'/broadcasts',{method:'POST',body:JSON.stringify({segment_id:env.RESEND_SEGMENT_ID,from:env.MAIL_FROM,subject:row.subject,html:htmlBody,text:row.text_body||undefined,send:true,scheduled_at:scheduledAt})});
   const status=scheduledAt?'scheduled':'sending';

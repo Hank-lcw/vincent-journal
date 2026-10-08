@@ -109,11 +109,31 @@ npm run deploy:cloudflare
 - 後台：`https://YOUR_DOMAIN/studio`
 - 系統狀態：後台 → 系統與權限
 
-## 6. GitHub + Cloudflare Builds
+## 6. GitHub Actions 自動部署
 
-將 repo 連到 Cloudflare Workers Builds，Production branch 設 `main`。
+目前 production CI 使用 GitHub Actions。每次 push 到 `main` 會先執行 typecheck、QA、D1 migration local test 與 Wrangler dry-run；驗證通過後，再由 Cloudflare 官方 `cloudflare/wrangler-action@v4` 部署。
 
-Cloudflare 綁定的 D1 / R2 / Secrets 仍由 Cloudflare account 管理，不要放到 repository。
+GitHub repository 必須設定兩個 Actions secrets：
+
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_API_TOKEN`
+
+設定位置：
+
+`Repository → Settings → Secrets and variables → Actions → New repository secret`
+
+Cloudflare Account ID 可在 Cloudflare Dashboard 的 Account Home 使用搜尋功能輸入 `Copy account ID`，或到 Workers & Pages 的 Account Details 複製。
+
+API Token 請使用專供 CI/CD 的 token，不要使用 Global API Key。最低原則是：
+
+- 既有 Worker `vincent-journal`：Workers Editor 權限即可部署。
+- 本 workflow 會另外執行 `wrangler d1 migrations apply DB --remote`，因此 token 還需要對 production D1 的寫入權限。
+- Scope 應限制在實際承載 VINCENT JOURNAL 的 Cloudflare account；不要給無關 account。
+- Token 不得寫入 `wrangler.jsonc`、`.dev.vars` 或任何 repository 檔案。
+
+缺少任一 GitHub Secret 時，workflow 仍會完成 validate job，但 production deploy 會明確標示為「未設定」，不會假裝已完成部署。
+
+完成兩個 secrets 後，在 GitHub → Actions → **Deploy VINCENT JOURNAL to Cloudflare** → **Run workflow** 手動跑一次；成功後未來 push 到 `main` 即自動發布。
 
 ## 7. 備份
 

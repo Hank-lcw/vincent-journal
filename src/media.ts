@@ -7,8 +7,26 @@ const allowedImageTypes = new Set(['image/jpeg','image/png','image/webp','image/
 const MAX_UPLOAD = 15 * 1024 * 1024;
 
 export async function listMedia(env: Env): Promise<any[]> {
-  const { results } = await env.DB.prepare(`SELECT id,filename,mime_type,byte_size,source,parent_media_id,visibility,alt_text,tags_json,ai_prompt,ai_model,public_url,metadata_json,created_at FROM media_assets ORDER BY created_at DESC LIMIT 300`).all();
-  return (results || []).map((r:any) => ({...r, tags: safeJson(r.tags_json, []), metadata: safeJson(r.metadata_json,{})}));
+  const { results } = await env.DB.prepare(`
+    SELECT m.id,m.filename,m.mime_type,m.byte_size,m.width,m.height,m.source,m.parent_media_id,
+      m.visibility,m.alt_text,m.tags_json,m.ai_prompt,m.ai_model,m.public_url,m.metadata_json,m.created_at,
+      (SELECT COUNT(*) FROM media_assets c WHERE c.parent_media_id=m.id) AS child_count,
+      (SELECT COUNT(*) FROM articles a WHERE a.cover_media_id=m.id) AS article_refs,
+      (SELECT COUNT(*) FROM issues i WHERE i.cover_media_id=m.id) AS issue_refs,
+      (SELECT COUNT(*) FROM social_drafts s WHERE s.media_ids_json LIKE '%"' || m.id || '"%') AS social_refs
+    FROM media_assets m
+    ORDER BY m.created_at DESC
+    LIMIT 500
+  `).all();
+  return (results || []).map((r:any) => ({
+    ...r,
+    tags: safeJson(r.tags_json, []),
+    metadata: safeJson(r.metadata_json,{}),
+    child_count: Number(r.child_count || 0),
+    article_refs: Number(r.article_refs || 0),
+    issue_refs: Number(r.issue_refs || 0),
+    social_refs: Number(r.social_refs || 0)
+  }));
 }
 
 export async function uploadMedia(env: Env, request: Request, user: AuthUser): Promise<any> {
@@ -17,20 +35,37 @@ export async function uploadMedia(env: Env, request: Request, user: AuthUser): P
   if (!(file instanceof File)) throw new HttpError(400, '請上傳圖片檔案');
   if (!allowedImageTypes.has(file.type)) throw new HttpError(415, '僅支援 JPEG、PNG、WebP、AVIF');
   if (file.size <= 0 || file.size > MAX_UPLOAD) throw new HttpError(413, '圖片大小需低於 15MB');
+
+  const parentId = String(form.get('parent_media_id') || '').trim() || null;
+  const preset = String(form.get('preset') || '').trim().slice(0,80);
+  const crop = safeJson(String(form.get('crop_json') || '{}'), {});
+  let parent:any = null;
+  if (parentId) {
+    parent = await env.DB.prepare(`SELECT id,filename FROM media_assets WHERE id=?`).bind(parentId).first<any>();
+    if (!parent) throw new HttpError(404, '找不到衍生版本的來源圖片');
+  }
+
   const id = uuid();
   const ext = file.type === 'image/jpeg' ? 'jpg' : file.type.split('/')[1];
-  const key = `media/${new Date().toISOString().slice(0,10)}/${id}.${ext}`;
+  const key = `${parentId ? 'derived' : 'media'}/${new Date().toISOString().slice(0,10)}/${id}.${ext}`;
   const visibility = form.get('visibility') === 'public' ? 'public' : 'private';
   const alt = String(form.get('alt_text') || '').slice(0, 500);
   const tags = String(form.get('tags') || '').split(',').map(x=>x.trim()).filter(Boolean).slice(0,30);
+  const metadata = parentId ? {
+    derivative: true,
+    preset: preset || 'custom',
+    crop,
+    source_filename: parent?.filename || null
+  } : {};
+
   await env.MEDIA.put(key, await file.arrayBuffer(), {
     httpMetadata: { contentType: file.type, cacheControl: visibility === 'public' ? 'public,max-age=31536000,immutable' : 'private,no-store' },
-    customMetadata: { source: 'upload', originalFilename: file.name.slice(0,200) }
+    customMetadata: { source: parentId ? 'derived' : 'upload', originalFilename: file.name.slice(0,200), ...(preset ? {preset} : {}) }
   });
   const publicUrl = visibility === 'public' ? `${env.PUBLIC_BASE_URL.replace(/\/$/,'')}/media/${id}` : null;
-  await env.DB.prepare(`INSERT INTO media_assets (id,object_key,public_url,filename,mime_type,byte_size,source,visibility,alt_text,tags_json,created_by,created_at) VALUES (?,?,?,?,?,?,'upload',?,?,?,?,?)`)
-    .bind(id,key,publicUrl,file.name,file.type,file.size,visibility,alt,JSON.stringify(tags),user.id,nowIso()).run();
-  await audit(env, request, user, 'media.upload', 'media', id, { filename:file.name, bytes:file.size, visibility });
+  await env.DB.prepare(`INSERT INTO media_assets (id,object_key,public_url,filename,mime_type,byte_size,source,parent_media_id,visibility,alt_text,tags_json,metadata_json,created_by,created_at) VALUES (?,?,?,?,?,?,'${parentId ? 'import' : 'upload'}',?,?,?,?,?,?,?)`)
+    .bind(id,key,publicUrl,file.name,file.type,file.size,parentId,visibility,alt,JSON.stringify(tags),JSON.stringify(metadata),user.id,nowIso()).run();
+  await audit(env, request, user, parentId ? 'media.derive' : 'media.upload', 'media', id, { filename:file.name, bytes:file.size, visibility, parentId, preset: preset || null, crop });
   return env.DB.prepare(`SELECT * FROM media_assets WHERE id=?`).bind(id).first();
 }
 
@@ -123,4 +158,28 @@ export async function setMediaVisibility(env: Env, request: Request, user: AuthU
   await env.DB.prepare(`UPDATE media_assets SET visibility=?, public_url=? WHERE id=?`).bind(visibility,publicUrl,id).run();
   await audit(env,request,user,'media.visibility','media',id,{visibility});
   return env.DB.prepare(`SELECT * FROM media_assets WHERE id=?`).bind(id).first();
+}
+
+
+export async function deleteMedia(env: Env, request: Request, user: AuthUser, id: string): Promise<any> {
+  if (!['owner','admin'].includes(user.role)) throw new HttpError(403, '只有 Owner／Admin 可以刪除媒體素材');
+  const asset = await env.DB.prepare(`SELECT * FROM media_assets WHERE id=?`).bind(id).first<any>();
+  if (!asset) throw new HttpError(404, '找不到圖片');
+
+  const child = await env.DB.prepare(`SELECT id,filename FROM media_assets WHERE parent_media_id=? ORDER BY created_at DESC LIMIT 1`).bind(id).first<any>();
+  if (child) throw new HttpError(409, `這張素材仍有衍生版本「${child.filename}」，請先刪除衍生版本`);
+
+  const article = await env.DB.prepare(`SELECT id,title FROM articles WHERE cover_media_id=? LIMIT 1`).bind(id).first<any>();
+  if (article) throw new HttpError(409, `這張素材正被文章「${article.title}」使用，不能刪除`);
+
+  const issue = await env.DB.prepare(`SELECT id,title,volume FROM issues WHERE cover_media_id=? LIMIT 1`).bind(id).first<any>();
+  if (issue) throw new HttpError(409, `這張素材正被刊物 VOL. ${String(issue.volume).padStart(3,'0')}「${issue.title}」使用，不能刪除`);
+
+  const social = await env.DB.prepare(`SELECT id,title,platform FROM social_drafts WHERE media_ids_json LIKE ? LIMIT 1`).bind(`%"${id}"%`).first<any>();
+  if (social) throw new HttpError(409, `這張素材正被 ${social.platform} 社群草稿「${social.title || social.id}」使用，不能刪除`);
+
+  await env.MEDIA.delete(asset.object_key);
+  await env.DB.prepare(`DELETE FROM media_assets WHERE id=?`).bind(id).run();
+  await audit(env, request, user, 'media.delete', 'media', id, { filename:asset.filename, parentId:asset.parent_media_id || null });
+  return { ok:true, id };
 }

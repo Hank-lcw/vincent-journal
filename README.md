@@ -7,14 +7,14 @@ VINCENT JOURNAL 是以精品雜誌式閱讀體驗為前台、VINCENT STUDIO 為�
 ## Production architecture
 
 - Cloudflare Access JWT + D1 角色權限：`owner / admin / reviewer / editor`
-- D1：文章、版本、訂閱者、審核、OAuth metadata、jobs、audit log
+- D1：文章、期刊／刊物、版本、訂閱者、審核、OAuth metadata、jobs、audit log
 - R2：私人媒體素材、公開發布素材、長期備份
-- OpenAI Images：圖片生成與修改
+- OpenAI：圖片生成／修改，以及依 Instagram、Facebook、Threads、小紅書語境產生社群文案
 - Resend：Double Opt-in、寄送、退訂、bounce / complaint suppression
 - Meta / Threads：Facebook、Instagram、Threads 發布
 - 小紅書：Ready to Publish 安全交付模式
 - Canva：OAuth PKCE、Brand Template dataset、Autofill
-- GitHub Actions：main 分支 typecheck → migration → Cloudflare deploy
+- GitHub Actions：typecheck → production dependency audit → repository QA → local D1 migration test → Wrangler dry run；設定 Cloudflare Secrets 後才會正式 deploy → remote migration → production smoke test
 
 ## 安全原則
 
@@ -31,10 +31,10 @@ npm run dev
 
 ## 正式部署前
 
-1. 建立 D1 `vincent-journal`
+1. 使用已綁定的 production D1 `vincent-journal-runtime`
 2. 建立 R2 `vincent-journal-media`、`vincent-journal-backups`
 3. 設定 Cloudflare Access
-4. 將 `wrangler.jsonc` placeholder 換成真實值
+4. 將 `MAIL_FROM`、`RESEND_SEGMENT_ID` 與各 OAuth / Turnstile 設定換成正式值
 5. 在 GitHub Secrets 設 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`
 6. 在 Cloudflare 設 Worker Secrets
 7. 設定 Resend、Meta、Threads、Canva OAuth

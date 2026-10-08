@@ -3,7 +3,7 @@ import { HttpError, json, readJson, securityHeaders } from './http';
 import { requireUser } from './auth';
 import { listStaff, upsertStaff, updateStaff } from './staff';
 import { listAdminArticles, listPublicArticles, getPublicArticle, createArticle, updateArticle, transitionArticle, listArticleRevisions, restoreArticleRevision, deleteArticle, areArticlesManaged } from './articles';
-import { listMedia, uploadMedia, serveMedia, generateImage, editImage, setMediaVisibility, deleteMedia } from './media';
+import { listMedia, uploadMedia, serveMedia, generateImage, editImage, analyzeMedia, setMediaVisibility, deleteMedia } from './media';
 import { subscribe, verifySubscription, unsubscribe, handleResendWebhook, listSubscribers, listNewsletterCampaigns, createNewsletterCampaign, updateNewsletterCampaign, submitNewsletter, rejectNewsletter, approveNewsletter, sendNewsletter, getResendDomainStatus } from './newsletter';
 import { listIntegrations, startOAuth, handleOAuthCallback, disconnectIntegration, systemIntegrationStatus } from './integrations';
 import { listBrandTemplates, brandTemplateDataset, createAutofill, getAutofillJob, attachCanvaDesign, uploadPublicAssetToCanva, getCanvaAssetUploadJob } from './canva';
@@ -110,6 +110,7 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
     if(method==='POST' && p==='/api/admin/media/upload') return json({media:await uploadMedia(env,request,user)},201);
     if(method==='POST' && p==='/api/admin/media/generate') return json({media:await generateImage(env,request,user,await readJson(request))},201);
     if(method==='POST' && p==='/api/admin/media/edit') return json({media:await editImage(env,request,user,await readJson(request))},201);
+    if(method==='POST' && seg[2]==='media' && seg[3] && seg[4]==='analyze') return json({media:await analyzeMedia(env,request,user,seg[3])});
     if(method==='PATCH' && seg[2]==='media' && seg[3] && seg[4]==='visibility'){
       const input:any=await readJson(request); if(!['private','public'].includes(input.visibility)) throw new HttpError(400,'visibility 必須為 private 或 public');
       return json({media:await setMediaVisibility(env,request,user,seg[3],input.visibility)});

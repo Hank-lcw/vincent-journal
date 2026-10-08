@@ -90,17 +90,47 @@ export async function createSocialDraft(env:Env,request:Request,user:AuthUser,in
 export async function updateSocialDraft(env:Env,request:Request,user:AuthUser,id:string,input:any):Promise<any>{
   requireRole(user,'editor'); const row=await env.DB.prepare(`SELECT * FROM social_drafts WHERE id=?`).bind(id).first<any>(); if(!row) throw new HttpError(404,'找不到社群草稿');
   if(!['draft','in_review'].includes(row.status)) throw new HttpError(409,'只有草稿或審核中的貼文可編輯');
-  await env.DB.prepare(`UPDATE social_drafts SET format=?,title=?,copy=?,media_ids_json=?,scheduled_at=?,updated_at=? WHERE id=?`)
-    .bind(input.format!==undefined?String(input.format).slice(0,80):row.format,input.title!==undefined?String(input.title).slice(0,250):row.title,input.copy!==undefined?String(input.copy):row.copy,input.media_ids!==undefined?JSON.stringify(input.media_ids):row.media_ids_json,input.scheduled_at!==undefined?input.scheduled_at:row.scheduled_at,nowIso(),id).run();
-  await audit(env,request,user,'social.update','social',id); return env.DB.prepare(`SELECT * FROM social_drafts WHERE id=?`).bind(id).first();
+  const platform=input.platform!==undefined?String(input.platform):row.platform;
+  if(!platforms.has(platform)) throw new HttpError(400,'不支援的社群平台');
+  if(input.media_ids!==undefined && !Array.isArray(input.media_ids)) throw new HttpError(400,'media_ids 必須是陣列');
+  const nextStatus=row.status==='in_review'?'draft':row.status;
+  await env.DB.prepare(`UPDATE social_drafts SET article_id=?,issue_id=?,platform=?,format=?,title=?,copy=?,media_ids_json=?,scheduled_at=?,status=?,approved_by=NULL,updated_at=? WHERE id=?`)
+    .bind(
+      input.article_id!==undefined?(input.article_id||null):row.article_id,
+      input.issue_id!==undefined?(input.issue_id||null):row.issue_id,
+      platform,
+      input.format!==undefined?String(input.format).slice(0,80):row.format,
+      input.title!==undefined?String(input.title).slice(0,250):row.title,
+      input.copy!==undefined?String(input.copy).slice(0,12000):row.copy,
+      input.media_ids!==undefined?JSON.stringify(input.media_ids):row.media_ids_json,
+      input.scheduled_at!==undefined?(input.scheduled_at||null):row.scheduled_at,
+      nextStatus,nowIso(),id
+    ).run();
+  await audit(env,request,user,'social.update','social',id,{previous_status:row.status,next_status:nextStatus});
+  return env.DB.prepare(`SELECT * FROM social_drafts WHERE id=?`).bind(id).first();
 }
 export async function submitSocialDraft(env:Env,request:Request,user:AuthUser,id:string,note=''):Promise<any>{
   requireRole(user,'editor'); const row=await env.DB.prepare(`SELECT * FROM social_drafts WHERE id=?`).bind(id).first<any>(); if(!row) throw new HttpError(404,'找不到社群草稿');
   if(row.status!=='draft') throw new HttpError(409,'只有草稿可送審');
+  if(!String(row.copy||row.title||'').trim()) throw new HttpError(409,'送審前請先完成貼文文字');
+  const mediaIds=safeJson<string[]>(row.media_ids_json,[]);
+  if(row.platform==='instagram' && !mediaIds.length) throw new HttpError(409,'Instagram 貼文送審前至少需要一張圖片');
   await env.DB.prepare(`UPDATE social_drafts SET status='in_review',updated_at=? WHERE id=?`).bind(nowIso(),id).run();
   await env.DB.prepare(`INSERT INTO approvals (id,entity_type,entity_id,action,note,actor_id,created_at) VALUES (?,'social',?,'submit',?,?,?)`).bind(uuid(),id,note,user.id,nowIso()).run();
   await audit(env,request,user,'social.submit','social',id,{note}); return env.DB.prepare(`SELECT * FROM social_drafts WHERE id=?`).bind(id).first();
 }
+export async function rejectSocialDraft(env:Env,request:Request,user:AuthUser,id:string,note=''):Promise<any>{
+  requireRole(user,'reviewer');
+  const row=await env.DB.prepare(`SELECT * FROM social_drafts WHERE id=?`).bind(id).first<any>();
+  if(!row) throw new HttpError(404,'找不到社群草稿');
+  if(!['in_review','approved'].includes(row.status)) throw new HttpError(409,'目前狀態無法退回');
+  const now=nowIso();
+  await env.DB.prepare(`UPDATE social_drafts SET status='draft',approved_by=NULL,updated_at=? WHERE id=?`).bind(now,id).run();
+  await env.DB.prepare(`INSERT INTO approvals (id,entity_type,entity_id,action,note,actor_id,created_at) VALUES (?,'social',?,'reject',?,?,?)`).bind(uuid(),id,note,user.id,now).run();
+  await audit(env,request,user,'social.reject','social',id,{note,previous_status:row.status});
+  return env.DB.prepare(`SELECT * FROM social_drafts WHERE id=?`).bind(id).first();
+}
+
 export async function approveSocialDraft(env:Env,request:Request,user:AuthUser,id:string,note=''):Promise<any>{
   requireRole(user,'reviewer'); const row=await env.DB.prepare(`SELECT * FROM social_drafts WHERE id=?`).bind(id).first<any>(); if(!row) throw new HttpError(404,'找不到社群草稿');
   if(row.status!=='in_review') throw new HttpError(409,'只有待審社群草稿可以核准');

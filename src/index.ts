@@ -3,7 +3,7 @@ import { HttpError, json, readJson, securityHeaders } from './http';
 import { requireUser } from './auth';
 import { listStaff, upsertStaff, updateStaff } from './staff';
 import { listAdminArticles, listPublicArticles, getPublicArticle, createArticle, updateArticle, transitionArticle, listArticleRevisions, restoreArticleRevision, deleteArticle, areArticlesManaged } from './articles';
-import { listMedia, uploadMedia, serveMedia, generateImage, editImage, setMediaVisibility } from './media';
+import { listMedia, uploadMedia, serveMedia, generateImage, editImage, setMediaVisibility, deleteMedia } from './media';
 import { subscribe, verifySubscription, unsubscribe, handleResendWebhook, listSubscribers, listNewsletterCampaigns, createNewsletterCampaign, updateNewsletterCampaign, submitNewsletter, rejectNewsletter, approveNewsletter, sendNewsletter, getResendDomainStatus } from './newsletter';
 import { listIntegrations, startOAuth, handleOAuthCallback, disconnectIntegration, systemIntegrationStatus } from './integrations';
 import { listBrandTemplates, brandTemplateDataset, createAutofill, getAutofillJob, attachCanvaDesign, uploadPublicAssetToCanva, getCanvaAssetUploadJob } from './canva';
@@ -110,6 +110,7 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
       const input:any=await readJson(request); if(!['private','public'].includes(input.visibility)) throw new HttpError(400,'visibility 必須為 private 或 public');
       return json({media:await setMediaVisibility(env,request,user,seg[3],input.visibility)});
     }
+    if(method==='DELETE' && seg[2]==='media' && seg[3] && seg.length===4) return json(await deleteMedia(env,request,user,seg[3]));
 
     if(method==='GET' && p==='/api/admin/newsletter/subscribers') return json({subscribers:await listSubscribers(env,user)});
     if(method==='GET' && p==='/api/admin/newsletter/campaigns') return json({campaigns:await listNewsletterCampaigns(env,user)});

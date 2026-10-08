@@ -334,8 +334,63 @@ function mediaFamilyIndex(m){
   const fam=mediaFamily(m.id);
   return Math.max(1,fam.findIndex(x=>x.id===m.id)+1);
 }
+const mediaFilterState={search:'',usage:'all',format:'all'};
+function mediaPreset(m){return String(m?.metadata?.preset||'')}
+function mediaMatchesFilters(m){
+  const q=mediaFilterState.search.trim().toLowerCase();
+  if(q){
+    const hay=[m.filename,m.alt_text,...(Array.isArray(m.tags)?m.tags:[]),mediaSourceLabel(m),mediaPreset(m)].join(' ').toLowerCase();
+    if(!hay.includes(q))return false;
+  }
+  const usage=mediaUsageCount(m),family=mediaFamily(m.id);
+  if(mediaFilterState.usage==='unused' && (usage>0||Number(m.child_count||0)>0))return false;
+  if(mediaFilterState.usage==='used' && usage===0)return false;
+  if(mediaFilterState.usage==='family' && family.length<2)return false;
+  const preset=mediaPreset(m);
+  if(mediaFilterState.format==='original' && (preset||m.source==='ai_edit'))return false;
+  if(mediaFilterState.format==='ai-edit' && m.source!=='ai_edit')return false;
+  if(['instagram-4x5','instagram-1x1','journal-16x9'].includes(mediaFilterState.format) && preset!==mediaFilterState.format)return false;
+  return true;
+}
+function preferredSocialMedia(id,platform){
+  const selected=mediaCache.find(x=>x.id===id);
+  if(!selected)return null;
+  const family=mediaFamily(id);
+  const wanted=platform==='instagram'?['instagram-4x5','instagram-1x1']:
+    platform==='facebook'?['instagram-4x5','instagram-1x1','journal-16x9']:
+    platform==='threads'?['instagram-1x1','instagram-4x5']:
+    platform==='xiaohongshu'?['instagram-4x5','instagram-1x1']:[];
+  for(const p of wanted){
+    const hit=family.slice().reverse().find(x=>mediaPreset(x)===p);
+    if(hit)return hit;
+  }
+  return selected;
+}
+async function prepareMediaForSocial(id,platform){
+  const chosen=preferredSocialMedia(id,platform);
+  if(!chosen)return toast('找不到這張素材');
+  show('social');
+  await loadSocial();
+  resetSocialEditor();
+  $('#socialPlatform').value=platform;
+  fillSocialSources();
+  [...$('#socialMedia').options].forEach(o=>o.selected=o.value===chosen.id);
+  const label={instagram:'Instagram',facebook:'Facebook',threads:'Threads',xiaohongshu:'小紅書'}[platform]||platform;
+  const switched=chosen.id!==id;
+  $('#socialAiBrief').textContent=`已從媒體工作室帶入 ${label} 素材：${chosen.filename}${switched?'（已自動選擇同一家族較適合的平台比例版本）':''}。下一步可選來源文章，再用 AI 依平台產生文案。`;
+  $('#socialEditorPanel').scrollIntoView({behavior:'smooth',block:'start'});
+  toast(`已帶入 ${label} 草稿編輯器`);
+}
+function updateMediaFilters(){
+  mediaFilterState.search=$('#mediaSearch')?.value||'';
+  mediaFilterState.usage=$('#mediaUsageFilter')?.value||'all';
+  mediaFilterState.format=$('#mediaFormatFilter')?.value||'all';
+  renderMedia();
+}
 function renderMedia(){
-  $('#mediaGrid').innerHTML=mediaCache.length?mediaCache.map(m=>{
+  const visible=mediaCache.filter(mediaMatchesFilters);
+  if($('#mediaResultCount'))$('#mediaResultCount').textContent=`顯示 ${visible.length} / ${mediaCache.length} 筆素材`;
+  $('#mediaGrid').innerHTML=visible.length?visible.map(m=>{
     const usage=mediaUsageCount(m),children=Number(m.child_count||0),family=mediaFamily(m.id);
     const locked=usage>0||children>0;
     const badges=[
@@ -354,12 +409,19 @@ function renderMedia(){
           <button class="btn" data-media-tools="${e(m.id)}">裁切／衍生</button>
           <button class="btn" data-media-edit="${e(m.id)}">AI 修改</button>
           ${family.length>1?`<button class="btn" data-media-compare="${e(m.id)}">比較版本</button>`:''}
+          <label class="media-social-pick"><span class="sr-only">用於社群</span><select data-media-social="${e(m.id)}">
+            <option value="">用於社群…</option>
+            <option value="instagram">Instagram</option>
+            <option value="facebook">Facebook</option>
+            <option value="threads">Threads</option>
+            <option value="xiaohongshu">小紅書</option>
+          </select></label>
           <button class="btn" data-media-visibility="${e(m.id)}" data-next="${m.visibility==='public'?'private':'public'}">${m.visibility==='public'?'改為私人':'設為公開'}</button>
           ${canAdmin()?`<button class="btn danger" data-media-delete="${e(m.id)}" ${locked?'disabled':''} title="${locked?'素材仍被使用或有衍生版本，暫不可刪除':'永久刪除未使用素材'}">刪除</button>`:''}
         </div>
       </div>
     </article>`;
-  }).join(''):'<p class="empty-state">尚未建立媒體素材。</p>';
+  }).join(''):(mediaCache.length?'<p class="empty-state">沒有符合目前篩選條件的素材。</p>':'<p class="empty-state">尚未建立媒體素材。</p>');
 
   $$('[data-media-edit]').forEach(b=>b.onclick=()=>{
     editMediaId=b.dataset.mediaEdit;
@@ -371,8 +433,14 @@ function renderMedia(){
   });
   $$('[data-media-tools]').forEach(b=>b.onclick=()=>openMediaTools(b.dataset.mediaTools,false));
   $$('[data-media-compare]').forEach(b=>b.onclick=()=>openMediaTools(b.dataset.mediaCompare,true));
-  $$('[data-media-delete]').forEach(b=>b.onclick=()=>deleteMediaFromStudio(b.dataset.mediaDelete));
-  $$('[data-media-visibility]').forEach(b=>b.onclick=async()=>{
+  $('[data-media-delete]').forEach(b=>b.onclick=()=>deleteMediaFromStudio(b.dataset.mediaDelete));
+  $('[data-media-social]').forEach(s=>s.onchange=async()=>{
+    const platform=s.value;if(!platform)return;
+    s.disabled=true;
+    try{await prepareMediaForSocial(s.dataset.mediaSocial,platform)}
+    finally{s.value='';s.disabled=false}
+  });
+  $('[data-media-visibility]').forEach(b=>b.onclick=async()=>{
     try{
       await api('/studio/api/admin/media/'+b.dataset.mediaVisibility+'/visibility',{method:'PATCH',body:JSON.stringify({visibility:b.dataset.next})});
       toast('圖片可見性已更新');
@@ -514,6 +582,15 @@ $('#editImageBtn').onclick=async()=>{
 };
 $('#cancelEditImageBtn').onclick=()=>{$('#aiEditPanel').hidden=true;editMediaId=null};
 $('#reloadMediaBtn').onclick=()=>loadMedia(true);
+$('#mediaSearch').oninput=updateMediaFilters;
+$('#mediaUsageFilter').onchange=updateMediaFilters;
+$('#mediaFormatFilter').onchange=updateMediaFilters;
+$('#resetMediaFiltersBtn').onclick=()=>{
+  $('#mediaSearch').value='';
+  $('#mediaUsageFilter').value='all';
+  $('#mediaFormatFilter').value='all';
+  updateMediaFilters();
+};
 
 function cropRect(img,preset){
   const ratio=preset.w/preset.h;
@@ -978,6 +1055,16 @@ async function loadSocial(){
     renderIntegrationStatus(intg.integrations||[]);fillSocialSources();renderSocialDrafts(drafts.drafts||[]);
   }catch(err){$('#socialStatus').innerHTML=`<p>${e(err.message)}</p>`}
 }
+$('#socialPlatform').onchange=()=>{
+  const ids=[...$('#socialMedia').selectedOptions].map(o=>o.value);
+  if(ids.length===1){
+    const preferred=preferredSocialMedia(ids[0],$('#socialPlatform').value);
+    if(preferred&&preferred.id!==ids[0]){
+      [...$('#socialMedia').options].forEach(o=>o.selected=o.value===preferred.id);
+      $('#socialAiBrief').textContent='已依新平台自動切換為同一家族較適合的圖片比例：'+preferred.filename;
+    }
+  }
+};
 $('#generateSocialCopyBtn').onclick=generateSocialCopy;
 $('#saveSocialDraftBtn').onclick=()=>saveSocial(false);
 $('#submitSocialDraftBtn').onclick=()=>saveSocial(true);

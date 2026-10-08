@@ -3,6 +3,7 @@ import { HttpError } from './http';
 import { asInt, escapeHtml, nowIso, slugify, uuid } from './utils';
 import { requireRole } from './auth';
 import { audit } from './audit';
+import { queueArticleNewsletter } from './newsletter';
 
 const categories = new Set(['aesthetics','healthy-aging','longevity']);
 
@@ -227,8 +228,9 @@ export async function transitionArticle(env: Env, request: Request, user: AuthUs
     status = 'archived';
   }
   await snapshot(env, id, user, `狀態變更：${action}`);
-  await env.DB.prepare(`UPDATE articles SET status=?, published_at=CASE WHEN ?='published' THEN COALESCE(published_at,?) ELSE published_at END, updated_by=?,updated_at=? WHERE id=?`)
-    .bind(status, status, nowIso(), user.id, nowIso(), id).run();
+  const transitionNow=nowIso();
+  await env.DB.prepare(`UPDATE articles SET status=?, published_at=CASE WHEN ?='published' THEN COALESCE(published_at,?) ELSE published_at END, first_published_at=CASE WHEN ?='published' THEN COALESCE(first_published_at,?) ELSE first_published_at END, updated_by=?,updated_at=? WHERE id=?`)
+    .bind(status,status,transitionNow,status,transitionNow,user.id,transitionNow,id).run();
   if (status === 'published' && current.cover_media_id) {
     const publicUrl = `${env.PUBLIC_BASE_URL.replace(/\/$/,'')}/media/${current.cover_media_id}`;
     await env.DB.prepare(`UPDATE media_assets SET visibility='public',public_url=? WHERE id=?`).bind(publicUrl,current.cover_media_id).run();
@@ -237,7 +239,12 @@ export async function transitionArticle(env: Env, request: Request, user: AuthUs
     .bind(uuid(), id, action === 'archive' ? 'unpublish' : action, note, user.id, nowIso()).run();
   if(action==='reject'||action==='archive') await resetReferencingIssues(env,request,user,id,`article_${action}`);
   await audit(env, request, user, `article.${action}`, 'article', id, { from: current.status, to: status, note });
-  return env.DB.prepare(`SELECT * FROM articles WHERE id=?`).bind(id).first();
+  const updated=await env.DB.prepare(`SELECT * FROM articles WHERE id=?`).bind(id).first<any>();
+  if(action==='publish' && current.status!=='published' && updated){
+    const isUpdate=Boolean(current.first_published_at);
+    await queueArticleNewsletter(env,request,user,updated,isUpdate).catch(err=>console.error('article_newsletter_queue_failed',id,err));
+  }
+  return updated;
 }
 
 export async function listArticleRevisions(env: Env, articleId: string): Promise<any[]> {

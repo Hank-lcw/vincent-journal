@@ -435,14 +435,14 @@ function renderMedia(){
   });
   $$('[data-media-tools]').forEach(b=>b.onclick=()=>openMediaTools(b.dataset.mediaTools,false));
   $$('[data-media-compare]').forEach(b=>b.onclick=()=>openMediaTools(b.dataset.mediaCompare,true));
-  $('[data-media-delete]').forEach(b=>b.onclick=()=>deleteMediaFromStudio(b.dataset.mediaDelete));
-  $('[data-media-social]').forEach(s=>s.onchange=async()=>{
+  $$('[data-media-delete]').forEach(b=>b.onclick=()=>deleteMediaFromStudio(b.dataset.mediaDelete));
+  $$('[data-media-social]').forEach(s=>s.onchange=async()=>{
     const platform=s.value;if(!platform)return;
     s.disabled=true;
     try{await prepareMediaForSocial(s.dataset.mediaSocial,platform)}
     finally{s.value='';s.disabled=false}
   });
-  $('[data-media-visibility]').forEach(b=>b.onclick=async()=>{
+  $$('[data-media-visibility]').forEach(b=>b.onclick=async()=>{
     try{
       await api('/studio/api/admin/media/'+b.dataset.mediaVisibility+'/visibility',{method:'PATCH',body:JSON.stringify({visibility:b.dataset.next})});
       toast('圖片可見性已更新');

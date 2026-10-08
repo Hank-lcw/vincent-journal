@@ -82,7 +82,7 @@ body.vj-page-leaving .vj-transition-veil{
 /* Tactile press glow, position supplied by JS */
 .vj-pressable{position:relative;isolation:isolate}
 .vj-pressable:before{
-  content:"";position:absolute;z-index:-1;pointer-events:none;
+  content:"";position:absolute;z-index:0;pointer-events:none;
   width:150px;height:150px;border-radius:50%;
   left:calc(var(--press-x,50%) - 75px);top:calc(var(--press-y,50%) - 75px);
   background:radial-gradient(circle,rgba(255,255,255,.22),rgba(255,255,255,0) 68%);
@@ -117,9 +117,9 @@ body.vj-page-leaving .vj-transition-veil{
 }
 @media(hover:hover) and (pointer:fine){
   .selection-card:hover{transform:translateY(-3px);box-shadow:var(--vj-shadow-soft)}
-  .selection-card.image:hover img{transform:scale(1.035);filter:saturate(1.04) contrast(1.015)}
+  .selection-card.image:hover img{transform:translate3d(var(--card-x,0),var(--card-y,0),0) scale(1.035);filter:saturate(1.04) contrast(1.015)}
   .journal-card:hover{transform:translateY(-4px)}
-  .journal-card:hover img{transform:scale(1.045);filter:saturate(1.04) contrast(1.02)}
+  .journal-card:hover img{transform:translate3d(var(--card-x,0),var(--card-y,0),0) scale(1.045);filter:saturate(1.04) contrast(1.02)}
   .journal-card:hover h3{color:var(--olive)}
   .discover-row:hover{transform:translateX(3px);background:rgba(255,255,255,.26)}
   .discover-row:hover .discover-row-image img{transform:scale(1.055);filter:saturate(.92) contrast(1.02)}

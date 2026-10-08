@@ -95,21 +95,93 @@
 
 <section class="view" data-view="media">
   <div class="panel">
-    <div class="panel-head"><div><h2>媒體工作室</h2><p>圖片預設私人保存。可自行上傳、AI 生成、AI 修改；修改永遠建立新版本。</p></div></div>
-    <div class="form-grid">
-      <div class="field"><label>上傳圖片</label><input type="file" id="mediaFile" accept="image/jpeg,image/png,image/webp,image/avif"></div>
-      <div class="field"><label>替代文字</label><input id="mediaAlt" placeholder="描述圖片內容"></div>
+    <div class="panel-head">
+      <div>
+        <h2>媒體工作室</h2>
+        <p>原圖、AI 修改與社群／Journal 衍生尺寸維持在同一素材家族。圖片預設私人保存。</p>
+      </div>
+      <div class="media-workflow-note">ORIGINAL → VERSION → FORMAT</div>
     </div>
-    <div class="studio-actions editor-actions"><button class="btn primary" id="uploadMediaBtn">上傳素材</button></div>
-    <hr class="studio-rule">
-    <div class="form-grid">
-      <div class="field field-wide"><label>AI 圖片描述</label><textarea id="aiPrompt" placeholder="例如：自然光下的男性下顎線局部，暖白與低飽和色調，精品雜誌攝影感，不出現完整正臉。"></textarea></div>
+
+    <div class="media-input-grid">
+      <div class="media-input-block">
+        <div class="meta">UPLOAD</div>
+        <h3>上傳素材</h3>
+        <div class="form-grid">
+          <div class="field"><label>圖片</label><input type="file" id="mediaFile" accept="image/jpeg,image/png,image/webp,image/avif"></div>
+          <div class="field"><label>替代文字</label><input id="mediaAlt" placeholder="描述圖片內容"></div>
+        </div>
+        <div class="studio-actions editor-actions"><button class="btn primary" id="uploadMediaBtn">上傳素材</button></div>
+      </div>
+      <div class="media-input-block">
+        <div class="meta">GENERATE</div>
+        <h3>AI 圖像</h3>
+        <div class="field"><label>圖片描述</label><textarea id="aiPrompt" placeholder="例如：自然光下的男性下顎線局部，暖白與低飽和色調，精品雜誌攝影感，不出現完整正臉。"></textarea></div>
+        <div class="studio-actions editor-actions"><button class="btn primary" id="generateImageBtn">AI 生成圖片</button></div>
+      </div>
     </div>
-    <div class="studio-actions editor-actions"><button class="btn primary" id="generateImageBtn">AI 生成圖片</button></div>
+
     <div id="aiEditPanel" class="editor-card" hidden>
-      <div class="meta" id="aiEditSource">尚未選擇圖片</div>
+      <div class="panel-head">
+        <div><div class="meta">AI VERSION</div><h3 id="aiEditSource">尚未選擇圖片</h3></div>
+        <button class="btn" id="cancelEditImageBtn">關閉</button>
+      </div>
       <div class="field"><label>修改指令</label><textarea id="aiEditPrompt" placeholder="例如：保留構圖與五官比例，只提升自然光質感與細節，避免塑膠肌。"></textarea></div>
-      <div class="studio-actions editor-actions"><button class="btn primary" id="editImageBtn">建立修改版本</button><button class="btn" id="cancelEditImageBtn">取消</button></div>
+      <div class="studio-actions editor-actions"><button class="btn primary" id="editImageBtn">建立修改版本</button></div>
+    </div>
+
+    <div id="mediaToolPanel" class="editor-card media-tool-panel" hidden>
+      <div class="panel-head">
+        <div><div class="meta">FORMAT STUDIO</div><h3 id="mediaToolTitle">尺寸與封面裁切</h3><p id="mediaToolMeta"></p></div>
+        <button class="btn" id="closeMediaToolsBtn">關閉</button>
+      </div>
+
+      <div class="media-tool-layout">
+        <div class="media-crop-stage">
+          <canvas id="cropCanvas" width="720" height="900" aria-label="裁切預覽"></canvas>
+        </div>
+        <div class="media-tool-controls">
+          <div class="field">
+            <label>輸出比例</label>
+            <div class="ratio-picker" id="ratioPicker">
+              <button type="button" class="ratio-option active" data-preset="ig45"><span>4:5</span><small>Instagram</small></button>
+              <button type="button" class="ratio-option" data-preset="square"><span>1:1</span><small>Instagram</small></button>
+              <button type="button" class="ratio-option" data-preset="journal"><span>16:9</span><small>Journal 橫幅</small></button>
+            </div>
+          </div>
+          <div class="field range-field"><label>水平構圖 <output id="cropXOut">50</output></label><input id="cropX" type="range" min="0" max="100" value="50"></div>
+          <div class="field range-field"><label>垂直構圖 <output id="cropYOut">50</output></label><input id="cropY" type="range" min="0" max="100" value="50"></div>
+          <div class="field range-field"><label>縮放 <output id="cropZoomOut">1.00×</output></label><input id="cropZoom" type="range" min="100" max="240" value="100"></div>
+          <p class="form-note">裁切只建立新版本，不覆蓋原圖。4:5 輸出 1080×1350、1:1 輸出 1080×1080、Journal 橫幅輸出 1600×900。</p>
+          <div class="studio-actions">
+            <button class="btn primary" id="derivePresetBtn">建立目前比例版本</button>
+            <button class="btn" id="deriveAllBtn">一鍵衍生 4:5 / 1:1 / Journal</button>
+          </div>
+        </div>
+      </div>
+
+      <hr class="studio-rule">
+
+      <div class="media-compare-head">
+        <div><div class="meta">VERSION COMPARE</div><h3>同一素材不同版本比較</h3></div>
+        <div class="compare-selects">
+          <select id="compareLeft"></select>
+          <span>vs.</span>
+          <select id="compareRight"></select>
+        </div>
+      </div>
+      <div id="compareEmpty" class="form-note" hidden>這個素材家族目前只有一個版本；建立 AI 修改或尺寸衍生後即可比較。</div>
+      <div id="compareStage" class="compare-stage">
+        <img id="compareLeftImg" alt="比較版本 A">
+        <div id="compareRightClip" class="compare-right-clip"><img id="compareRightImg" alt="比較版本 B"></div>
+        <div id="compareDivider" class="compare-divider"></div>
+      </div>
+      <div class="field range-field compare-range"><label>比較分隔 <output id="compareOut">50%</output></label><input id="compareSlider" type="range" min="0" max="100" value="50"></div>
+    </div>
+
+    <div class="media-library-head">
+      <div><div class="meta">LIBRARY</div><h3>素材庫</h3><p>未被文章、刊物或社群內容使用，且沒有衍生子版本的素材可直接刪除。</p></div>
+      <button class="btn" id="reloadMediaBtn">重新整理</button>
     </div>
     <div id="mediaGrid" class="media-grid"></div>
   </div>

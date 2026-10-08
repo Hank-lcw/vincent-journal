@@ -7,7 +7,7 @@ import { listMedia, uploadMedia, serveMedia, generateImage, editImage, setMediaV
 import { subscribe, verifySubscription, unsubscribe, handleResendWebhook, listSubscribers, listNewsletterCampaigns, createNewsletterCampaign, updateNewsletterCampaign, submitNewsletter, rejectNewsletter, approveNewsletter, sendNewsletter, getResendDomainStatus } from './newsletter';
 import { listIntegrations, startOAuth, handleOAuthCallback, disconnectIntegration, systemIntegrationStatus } from './integrations';
 import { listBrandTemplates, brandTemplateDataset, createAutofill, getAutofillJob, attachCanvaDesign, uploadPublicAssetToCanva, getCanvaAssetUploadJob } from './canva';
-import { listSocialDrafts, createSocialDraft, updateSocialDraft, submitSocialDraft, approveSocialDraft, publishSocialDraft, generateSocialCopy } from './social';
+import { listSocialDrafts, createSocialDraft, updateSocialDraft, submitSocialDraft, rejectSocialDraft, approveSocialDraft, publishSocialDraft, generateSocialCopy } from './social';
 import { listBackups, manualBackup, createBackup } from './backup';
 import { runDueJobs } from './jobs';
 
@@ -118,6 +118,7 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
     if(seg[2]==='social' && seg[3]){
       if(method==='PATCH' && seg.length===4) return json({draft:await updateSocialDraft(env,request,user,seg[3],await readJson(request))});
       if(method==='POST' && seg[4]==='submit'){ const input:any=await readJson(request).catch(()=>({})); return json({draft:await submitSocialDraft(env,request,user,seg[3],String(input.note||''))}); }
+      if(method==='POST' && seg[4]==='reject'){ const input:any=await readJson(request).catch(()=>({})); return json({draft:await rejectSocialDraft(env,request,user,seg[3],String(input.note||''))}); }
       if(method==='POST' && seg[4]==='approve'){ const input:any=await readJson(request).catch(()=>({})); return json({draft:await approveSocialDraft(env,request,user,seg[3],String(input.note||''))}); }
       if(method==='POST' && seg[4]==='publish') return json({draft:await publishSocialDraft(env,request,user,seg[3])});
     }

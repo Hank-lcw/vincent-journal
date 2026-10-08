@@ -32,7 +32,7 @@ function reveal(root=document){
   nodes.push(...qa('.editorial-section,.section-header,.selection-card,.journal-card,.discover-row,.about-strip,.newsletter-strip,.article-reader>.meta,.article-title,.article-reader>.lead,.article-reader>.cover,.article-body>*,#issueArchive .panel,.page-head,.discover-intro',root));
   let i=0;
   for(const el of nodes){
-    if(el.dataset.vjReveal)return;
+    if(el.dataset.vjReveal)continue;
     el.dataset.vjReveal='1';
     el.classList.add('vj-reveal');
     el.style.setProperty('--vj-delay',Math.min(i%5,4)*45+'ms');
@@ -130,7 +130,7 @@ function readingProgress(){
   let raf=0;
   const update=()=>{
     raf=0;
-    const r=article.getBoundingClientRect(),start=scrollY+article.offsetTop,end=article.offsetTop+article.offsetHeight-innerHeight;
+    const r=article.getBoundingClientRect(),start=scrollY+r.top,end=start+article.offsetHeight-innerHeight;
     const p=end>start?Math.min(1,Math.max(0,(scrollY-start)/(end-start))):0;
     bar.style.transform='scaleX('+p.toFixed(4)+')';
   };

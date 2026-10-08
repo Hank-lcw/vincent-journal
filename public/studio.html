@@ -18,6 +18,7 @@
   <nav class="studio-menu" id="studioMenu">
     <button class="active" data-view="dashboard">首頁總覽</button>
     <button data-view="articles">文章管理</button>
+    <button data-view="issues">刊物管理</button>
     <button data-view="publish">發布中心</button>
     <button data-view="media">媒體工作室</button>
     <button data-view="newsletter">電子報工作室</button>
@@ -64,6 +65,27 @@
     </div>
     <div class="table-wrap" id="articlesTable"></div>
     <div id="revisionPanel" class="editor-card" hidden></div>
+  </div>
+</section>
+
+<section class="view" data-view="issues">
+  <div class="panel">
+    <div class="panel-head"><div><h2>刊物管理</h2><p>把已完成的文章編成一期 VINCENT JOURNAL；刊物本身也保留送審、核准、發布流程。</p></div><div class="studio-actions"><button class="btn primary" id="newIssueBtn">＋ 新增刊物</button><button class="btn" id="reloadIssues">重新整理</button></div></div>
+    <div id="issueEditor" class="editor-card" hidden>
+      <div class="form-grid">
+        <div class="field"><label>期數</label><input id="issueVolume" type="number" min="1" max="9999" placeholder="留白會自動遞增"></div>
+        <div class="field"><label>網址 Slug</label><input id="issueSlug" placeholder="例如 vol-001"></div>
+        <div class="field field-wide"><label>刊物標題</label><input id="issueTitle" maxlength="220"></div>
+        <div class="field field-wide"><label>副標題</label><input id="issueSubtitle" maxlength="500"></div>
+        <div class="field"><label>刊物封面</label><select id="issueCover"><option value="">尚未選擇</option></select></div>
+        <div class="field"><label>封面故事</label><select id="issueCoverStory"><option value="">尚未指定</option></select></div>
+        <div class="field field-wide"><label>編者按</label><textarea id="issueEditorNote"></textarea></div>
+        <div class="field field-wide"><label>本期文章（可多選，依文章列表順序編排）</label><select id="issueArticles" multiple class="multi-select"></select></div>
+      </div>
+      <div class="studio-actions editor-actions"><button class="btn" id="saveIssueDraftBtn">儲存草稿</button><button class="btn primary" id="submitIssueBtn">儲存並送審</button><button class="btn" id="cancelIssueEditBtn">取消</button></div>
+      <p class="form-note" id="issueEditorMode"></p>
+    </div>
+    <div class="table-wrap" id="issuesTable"></div>
   </div>
 </section>
 

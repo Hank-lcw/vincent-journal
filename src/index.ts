@@ -141,9 +141,10 @@ export default {
   async fetch(request:Request,env:Env,ctx:ExecutionContext):Promise<Response>{
     try{return securityHeaders(await route(request,env,ctx));}
     catch(e:any){
-      console.error('request_error',e);
-      if(e instanceof HttpError) return securityHeaders(json({error:e.message},e.status));
-      return securityHeaders(json({error:'伺服器發生未預期錯誤',detail:e instanceof Error?e.message:String(e)},500));
+      const requestId=crypto.randomUUID();
+      console.error('request_error',requestId,e);
+      if(e instanceof HttpError) return securityHeaders(json({error:e.message,request_id:requestId},e.status));
+      return securityHeaders(json({error:'伺服器發生未預期錯誤',request_id:requestId},500));
     }
   },
   async scheduled(controller:ScheduledController,env:Env,ctx:ExecutionContext):Promise<void>{

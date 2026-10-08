@@ -7,7 +7,7 @@ import { listMedia, uploadMedia, serveMedia, generateImage, editImage, analyzeMe
 import { subscribe, verifySubscription, unsubscribe, handleResendWebhook, listSubscribers, listNewsletterCampaigns, createNewsletterCampaign, updateNewsletterCampaign, submitNewsletter, rejectNewsletter, approveNewsletter, sendNewsletter, getResendDomainStatus } from './newsletter';
 import { listIntegrations, startOAuth, handleOAuthCallback, disconnectIntegration, systemIntegrationStatus } from './integrations';
 import { listBrandTemplates, brandTemplateDataset, createAutofill, getAutofillJob, attachCanvaDesign, uploadPublicAssetToCanva, getCanvaAssetUploadJob } from './canva';
-import { listSocialDrafts, createSocialDraft, updateSocialDraft, submitSocialDraft, rejectSocialDraft, approveSocialDraft, publishSocialDraft, generateSocialCopy } from './social';
+import { listSocialDrafts, createSocialDraft, updateSocialDraft, submitSocialDraft, rejectSocialDraft, approveSocialDraft, publishSocialDraft, generateSocialCopy, generateSocialStoryboard } from './social';
 import { listBackups, manualBackup, createBackup } from './backup';
 import { listAdminIssues, getIssueArticlesAdmin, createIssue, updateIssue, setIssueArticles, transitionIssue, listPublicIssues, getPublicIssue } from './issues';
 import { runDueJobs } from './jobs';
@@ -142,6 +142,7 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
 
     if(method==='GET' && p==='/api/admin/social') return json({drafts:await listSocialDrafts(env,user)});
     if(method==='POST' && p==='/api/admin/social/generate') return json(await generateSocialCopy(env,user,await readJson(request)));
+    if(method==='POST' && p==='/api/admin/social/storyboard') return json(await generateSocialStoryboard(env,user,await readJson(request)));
     if(method==='POST' && p==='/api/admin/social') return json({draft:await createSocialDraft(env,request,user,await readJson(request))},201);
     if(seg[2]==='social' && seg[3]){
       if(method==='PATCH' && seg.length===4) return json({draft:await updateSocialDraft(env,request,user,seg[3],await readJson(request))});

@@ -2,7 +2,7 @@ import type { Env, AuthUser } from './types';
 import { HttpError, json, readJson, securityHeaders } from './http';
 import { requireUser } from './auth';
 import { listStaff, upsertStaff, updateStaff } from './staff';
-import { listAdminArticles, listPublicArticles, getPublicArticle, createArticle, updateArticle, transitionArticle, listArticleRevisions, restoreArticleRevision } from './articles';
+import { listAdminArticles, listPublicArticles, getPublicArticle, createArticle, updateArticle, transitionArticle, listArticleRevisions, restoreArticleRevision, deleteArticle, areArticlesManaged } from './articles';
 import { listMedia, uploadMedia, serveMedia, generateImage, editImage, setMediaVisibility } from './media';
 import { subscribe, verifySubscription, unsubscribe, handleResendWebhook, listSubscribers, listNewsletterCampaigns, createNewsletterCampaign, updateNewsletterCampaign, submitNewsletter, rejectNewsletter, approveNewsletter, sendNewsletter, getResendDomainStatus } from './newsletter';
 import { listIntegrations, startOAuth, handleOAuthCallback, disconnectIntegration, systemIntegrationStatus } from './integrations';
@@ -26,7 +26,7 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
   if(method==='GET' && publicHtmlAliases[p]){ const assetUrl=new URL(request.url); assetUrl.pathname=publicHtmlAliases[p]; return env.ASSETS.fetch(new Request(assetUrl.toString(),request)); }
 
   if(method==='GET' && p==='/api/public/config') return json({turnstile_site_key:env.TURNSTILE_SECRET_KEY&&env.TURNSTILE_SITE_KEY?env.TURNSTILE_SITE_KEY:null});
-  if(method==='GET' && p==='/api/public/articles') return json({articles:await listPublicArticles(env,url)});
+  if(method==='GET' && p==='/api/public/articles') return json({articles:await listPublicArticles(env,url),managed:await areArticlesManaged(env)});
   if(method==='GET' && seg[0]==='api' && seg[1]==='public' && seg[2]==='articles' && seg[3]) return json({article:await getPublicArticle(env,seg[3])});
   if(method==='GET' && p==='/api/public/issues') return json({issues:await listPublicIssues(env)});
   if(method==='GET' && p==='/api/public/issues/current') return json({issue:await getPublicIssue(env)});
@@ -73,11 +73,12 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
     if(method==='POST' && p==='/api/admin/staff') return json({staff:await upsertStaff(env,request,user,await readJson(request))},201);
     if(method==='PATCH' && seg[2]==='staff' && seg[3]) return json({staff:await updateStaff(env,request,user,seg[3],await readJson(request))});
 
-    if(method==='GET' && p==='/api/admin/articles') return json({articles:await listAdminArticles(env)});
+    if(method==='GET' && p==='/api/admin/articles') return json({articles:await listAdminArticles(env,user)});
     if(method==='POST' && p==='/api/admin/articles') return json({article:await createArticle(env,request,user,await readJson(request))},201);
     if(seg[2]==='articles' && seg[3]){
       const id=seg[3];
       if(method==='PATCH' && seg.length===4) return json({article:await updateArticle(env,request,user,id,await readJson(request))});
+      if(method==='DELETE' && seg.length===4) return json(await deleteArticle(env,request,user,id));
       if(method==='GET' && seg[4]==='revisions') return json({revisions:await listArticleRevisions(env,id)});
       if(method==='POST' && seg[4]==='revisions' && seg[5] && seg[6]==='restore') return json({article:await restoreArticleRevision(env,request,user,id,seg[5])});
       if(method==='POST' && seg[4] && ['submit','approve','reject','publish','archive'].includes(seg[4])){

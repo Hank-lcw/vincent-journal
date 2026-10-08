@@ -25,12 +25,14 @@ const clamp=(n,a=0,b=1)=>Math.min(b,Math.max(a,n));
 const segment=(p,a,b)=>clamp((p-a)/(b-a));
 const ease=t=>t*t*(3-2*t);
 const lerp=(a,b,t)=>a+(b-a)*t;
-let mobile=false,viewWidth=1440,anchorX=345,anchorY=545,frame=0;
-function configure(){
+let mobile=false,viewWidth=1440,anchorX=345,anchorY=545,frame=0,lastPaint=0,lastProgress=-1,scrollRange=1,lastWidth=0;
+function configure(force=false){
  if(motion.matches)return;
  mobile=matchMedia('(max-width:760px), (max-aspect-ratio: 4/5)').matches;
  const w=scene.clientWidth,h=scene.clientHeight;
  if(!w||!h)return;
+ if(!force && Math.abs(w-lastWidth)<2)return; // Ignore iOS Safari address-bar height changes.
+ lastWidth=w;scrollRange=Math.max(1,root.offsetHeight-h);
  viewWidth=mobile?Math.round(900*w/h):1440;
  svg.setAttribute('viewBox',`0 0 ${viewWidth} 900`);
  const center=viewWidth/2;
@@ -38,6 +40,8 @@ function configure(){
   ? `<text class="vjp-glyph-text" x="${center}" y="428" text-anchor="middle" textLength="${viewWidth*.91}" lengthAdjust="spacingAndGlyphs" font-size="${viewWidth*.225}">VINCENT</text><text class="vjp-glyph-text" x="${center}" y="530" text-anchor="middle" textLength="${viewWidth*.91}" lengthAdjust="spacingAndGlyphs" font-size="${viewWidth*.225}">JOURNAL</text>`
   : '<text class="vjp-glyph-text" x="720" y="438" text-anchor="middle" textLength="1260" lengthAdjust="spacingAndGlyphs" font-size="205">VINCENT</text><text class="vjp-glyph-text" x="720" y="636" text-anchor="middle" textLength="1260" lengthAdjust="spacingAndGlyphs" font-size="205">JOURNAL</text>';
  inside.setAttribute('width',String(viewWidth));
+ root.querySelector('#vjpDarkRect')?.setAttribute('width',String(viewWidth));
+ root.querySelector('#vjpInsideTint')?.setAttribute('width',String(viewWidth));
  const last=letters.querySelectorAll('text')[1];
  try{
   const box=last.getExtentOfChar(1); // O in JOURNAL.
@@ -52,16 +56,19 @@ function configure(){
  }
  render();
 }
-function render(){
+function render(time=0){
  frame=0;
  if(motion.matches)return;
- const length=Math.max(1,root.offsetHeight-scene.offsetHeight);
- const p=clamp(-root.getBoundingClientRect().top/length);
+ if(mobile && time && time-lastPaint<32){frame=requestAnimationFrame(render);return;}
+ lastPaint=time||performance.now();
+ const p=clamp((scrollY-root.offsetTop)/scrollRange);
+ if(Math.abs(p-lastProgress)<.0007)return;
+ lastProgress=p;
  const image=ease(segment(p,.145,.34));
  inside.setAttribute('opacity',image.toFixed(4));
  insideDim.setAttribute('opacity',(image*.23).toFixed(3));
  const zoomPhase=ease(segment(p,.34,.74));
- const zoom=1+Math.pow(zoomPhase,1.75)*(mobile?29:27);
+ const zoom=1+Math.pow(zoomPhase,1.75)*(mobile?15:27);
  const shift=ease(segment(p,.345,.615));
  const cx=lerp(anchorX,viewWidth/2,shift),cy=lerp(anchorY,450,shift);
  glyph.setAttribute('transform',`translate(${cx.toFixed(3)} ${cy.toFixed(3)}) scale(${zoom.toFixed(4)}) translate(${(-anchorX).toFixed(3)} ${(-anchorY).toFixed(3)})`);
@@ -79,16 +86,16 @@ function render(){
  hint.style.opacity=(1-ease(segment(p,.035,.19))).toFixed(4);
  skip.style.opacity=(1-ease(segment(p,.75,.93))).toFixed(4);
  skip.style.pointerEvents=p>.92?'none':'auto';
- bar.style.height=(p*100).toFixed(2)+'%';
+ bar.style.transform='scaleY('+p.toFixed(4)+')';
  label.textContent=String(Math.round(p*100)).padStart(3,'0')+'%';
  number.textContent=(p<.16?'01':p<.34?'02':p<.58?'03':p<.76?'04':p<.91?'05':'06')+' / 06';
 }
 function schedule(){if(!frame)frame=requestAnimationFrame(render)}
 addEventListener('scroll',schedule,{passive:true});
 addEventListener('resize',()=>{configure();schedule()},{passive:true});
-addEventListener('orientationchange',configure,{passive:true});
-addEventListener('pageshow',()=>{configure();schedule()});
-if(motion.addEventListener)motion.addEventListener('change',()=>{configure();schedule()});
-if(document.fonts?.ready)document.fonts.ready.then(configure).catch(()=>{});
-configure();schedule();
+addEventListener('orientationchange',()=>{lastWidth=0;configure(true)},{passive:true});
+addEventListener('pageshow',()=>{lastWidth=0;configure(true);schedule()});
+if(motion.addEventListener)motion.addEventListener('change',()=>{lastWidth=0;configure(true);schedule()});
+if(document.fonts?.ready)document.fonts.ready.then(()=>{lastWidth=0;configure(true)}).catch(()=>{});
+configure(true);schedule();
 })();

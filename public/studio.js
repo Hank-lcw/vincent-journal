@@ -393,7 +393,7 @@ async function loadSystem(){
     const roles=['editor','reviewer','admin','owner'];
     $('#staffTable').innerHTML=canAdmin()?`<table class="table"><thead><tr><th>Email</th><th>名稱</th><th>角色</th><th>狀態</th><th>操作</th></tr></thead><tbody>${(staff.staff||[]).map(x=>{
       const locked=x.role==='owner'&&me?.role!=='owner';
-      const roleOptions=roles.filter(r=>me?.role==='owner'||r!=='owner').map(r=>`<option value="${r}" ${r===x.role?'selected':''}>${r}</option>`).join('');
+      const roleOptions=roles.filter(r=>me?.role==='owner'||r!=='owner'||r===x.role).map(r=>`<option value="${r}" ${r===x.role?'selected':''}>${r}</option>`).join('');
       const selfDeactivate=x.id===me?.id&&x.is_active;
       return `<tr><td>${e(x.email)}</td><td>${e(x.display_name||'')}</td><td><select data-staff-role="${e(x.id)}" ${locked?'disabled':''}>${roleOptions}</select></td><td>${x.is_active?'啟用':'停用'}</td><td><div class="studio-actions"><button class="btn" data-staff-save="${e(x.id)}" ${locked?'disabled':''}>儲存角色</button><button class="btn" data-staff-toggle="${e(x.id)}" data-next="${x.is_active?'0':'1'}" ${locked||selfDeactivate?'disabled':''}>${x.is_active?'停用':'啟用'}</button></div></td></tr>`;
     }).join('')}</tbody></table>`:'<p class="empty-state">此角色沒有管理員管理權限。</p>';

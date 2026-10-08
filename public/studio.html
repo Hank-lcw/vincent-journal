@@ -195,6 +195,25 @@
       <div><div class="meta">LIBRARY</div><h3>素材庫</h3><p>未被文章、刊物或社群內容使用，且沒有衍生子版本的素材可直接刪除。</p></div>
       <button class="btn" id="reloadMediaBtn">重新整理</button>
     </div>
+    <div class="media-library-tools" aria-label="素材庫篩選">
+      <div class="field media-search-field"><label>搜尋素材</label><input id="mediaSearch" type="search" placeholder="檔名、替代文字、標籤"></div>
+      <div class="field"><label>使用狀態</label><select id="mediaUsageFilter">
+        <option value="all">全部</option>
+        <option value="unused">未使用</option>
+        <option value="used">使用中</option>
+        <option value="family">有版本家族</option>
+      </select></div>
+      <div class="field"><label>格式</label><select id="mediaFormatFilter">
+        <option value="all">全部格式</option>
+        <option value="original">原始／AI 圖</option>
+        <option value="instagram-4x5">Instagram 4:5</option>
+        <option value="instagram-1x1">Instagram 1:1</option>
+        <option value="journal-16x9">Journal 16:9</option>
+        <option value="ai-edit">AI 修改版</option>
+      </select></div>
+      <button class="btn media-filter-reset" id="resetMediaFiltersBtn" type="button">清除篩選</button>
+      <div class="media-result-count" id="mediaResultCount"></div>
+    </div>
     <div id="mediaGrid" class="media-grid"></div>
   </div>
 </section>

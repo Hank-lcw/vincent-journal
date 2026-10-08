@@ -33,8 +33,14 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Production dependency audit
+        run: npm audit --omit=dev
+
       - name: Repository QA
         run: npm run qa
+
+      - name: Local D1 migration test
+        run: npx wrangler d1 migrations apply DB --local
 
       - name: Wrangler dry run
         run: npx wrangler deploy --dry-run

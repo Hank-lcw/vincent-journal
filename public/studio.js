@@ -1,7 +1,7 @@
 (()=>{
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const e=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-let me=null, articlesCache=[], mediaCache=[], campaignsCache=[], socialDraftsCache=[], editingArticleId=null, editMediaId=null, editingCampaignId=null, editingSocialId=null;
+let me=null, articlesCache=[], mediaCache=[], campaignsCache=[], socialDraftsCache=[], canvaDataset=null, canvaAssetCache={}, editingArticleId=null, editMediaId=null, editingCampaignId=null, editingSocialId=null;
 const roleRank={editor:10,reviewer:20,admin:30,owner:40};
 const canReview=()=>roleRank[me?.role]>=20, canAdmin=()=>roleRank[me?.role]>=30;
 const categoryLabel=s=>({aesthetics:'美學觀點','healthy-aging':'健康老化',longevity:'長壽科學'})[s]||s;
@@ -373,6 +373,99 @@ $('#generateSocialCopyBtn').onclick=generateSocialCopy;
 $('#saveSocialDraftBtn').onclick=()=>saveSocial(false);
 $('#submitSocialDraftBtn').onclick=()=>saveSocial(true);
 $('#cancelSocialEditBtn').onclick=resetSocialEditor;
+
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+function canvaDefaultText(field){
+  const k=field.toLowerCase();
+  if(/title|headline|heading|name/.test(k)) return $('#socialTitle').value||'';
+  if(/copy|caption|body|text|description|content/.test(k)) return $('#socialCopy').value||'';
+  return '';
+}
+function renderCanvaFields(){
+  const box=$('#canvaFields'),dataset=canvaDataset||{},entries=Object.entries(dataset);
+  if(!entries.length){box.innerHTML='<p class="empty-state">這個模板沒有可 Autofill 的欄位。</p>';$('#createCanvaDesignBtn').disabled=true;return}
+  const publicMedia=mediaCache.filter(m=>m.visibility==='public'&&m.public_url);
+  box.innerHTML=entries.map(([name,def])=>{
+    const type=String(def?.type||'');
+    if(type==='text') return `<div class="field field-wide"><label>${e(name)} <span class="meta">TEXT</span></label><textarea data-canva-field="${e(name)}" data-canva-type="text">${e(canvaDefaultText(name))}</textarea></div>`;
+    if(type==='image') return `<div class="field field-wide"><label>${e(name)} <span class="meta">IMAGE</span></label><select data-canva-field="${e(name)}" data-canva-type="image"><option value="">使用模板預設圖片</option>${publicMedia.map(m=>`<option value="${e(m.id)}">${e(m.filename)}</option>`).join('')}</select>${publicMedia.length?'':'<div class="form-note">目前沒有公開圖片；請先到媒體工作室將素材設為公開。</div>'}</div>`;
+    return `<div class="field field-wide"><label>${e(name)} <span class="meta">${e(type.toUpperCase()||'UNSUPPORTED')}</span></label><div class="form-note">此欄位類型目前保留模板預設值。</div></div>`;
+  }).join('');
+  $('#createCanvaDesignBtn').disabled=false;
+}
+async function loadCanvaTemplates(){
+  const btn=$('#loadCanvaTemplatesBtn'),old=btn.textContent;btn.disabled=true;btn.textContent='載入中…';
+  try{
+    const q=$('#canvaTemplateSearch').value.trim();
+    const d=await api('/studio/api/admin/canva/templates'+(q?'?q='+encodeURIComponent(q):''));
+    const items=d.items||[];
+    $('#canvaTemplate').innerHTML='<option value="">請選擇模板</option>'+items.map(x=>`<option value="${e(x.id)}">${e(x.title||x.id)}</option>`).join('');
+    $('#canvaStatus').textContent=items.length?`已載入 ${items.length} 個可 Autofill 模板。`:'沒有找到含 Autofill 欄位的 Canva Brand Template。';
+    canvaDataset=null;$('#canvaFields').innerHTML='';$('#createCanvaDesignBtn').disabled=true;
+  }catch(err){$('#canvaStatus').textContent=err.message;toast(err.message)}
+  finally{btn.disabled=false;btn.textContent=old}
+}
+async function loadCanvaDataset(){
+  const id=$('#canvaTemplate').value;if(!id)return toast('請先選擇 Canva 模板');
+  try{
+    $('#canvaStatus').textContent='正在讀取模板欄位…';
+    const d=await api('/studio/api/admin/canva/templates/'+encodeURIComponent(id)+'/dataset');
+    canvaDataset=d.dataset||{};
+    renderCanvaFields();
+    $('#canvaStatus').textContent=`已讀取 ${Object.keys(canvaDataset).length} 個 Autofill 欄位。`;
+  }catch(err){canvaDataset=null;$('#canvaFields').innerHTML='';$('#createCanvaDesignBtn').disabled=true;$('#canvaStatus').textContent=err.message;toast(err.message)}
+}
+async function canvaAssetId(mediaId){
+  if(canvaAssetCache[mediaId])return canvaAssetCache[mediaId];
+  let d=await api('/studio/api/admin/canva/assets/from-media',{method:'POST',body:JSON.stringify({media_id:mediaId})});
+  let job=d.job||d, id=job.id;
+  if(!id)throw new Error('Canva 素材上傳沒有回傳 job id');
+  for(let n=0;n<24;n++){
+    if(job.status==='success'&&job.asset?.id){canvaAssetCache[mediaId]=job.asset.id;return job.asset.id}
+    if(job.status==='failed')throw new Error(job.error?.message||'Canva 素材上傳失敗');
+    await wait(750);
+    d=await api('/studio/api/admin/canva/assets/'+encodeURIComponent(id));job=d.job||d;
+  }
+  throw new Error('Canva 素材上傳逾時，請稍後再試');
+}
+async function createCanvaDesign(){
+  const templateId=$('#canvaTemplate').value;if(!templateId||!canvaDataset)return toast('請先讀取 Canva 模板欄位');
+  const btn=$('#createCanvaDesignBtn'),old=btn.textContent;btn.disabled=true;btn.textContent='建立中…';
+  try{
+    const data={};
+    for(const el of $$('[data-canva-field]')){
+      const name=el.dataset.canvaField,type=el.dataset.canvaType,value=el.value;
+      if(!value)continue;
+      if(type==='text')data[name]={type:'text',text:value};
+      else if(type==='image'){
+        $('#canvaStatus').textContent='正在將圖片安全匯入 Canva…';
+        data[name]={type:'image',asset_id:await canvaAssetId(value)};
+      }
+    }
+    if(!Object.keys(data).length)throw new Error('至少填入一個 Canva Autofill 欄位');
+    $('#canvaStatus').textContent='正在建立 Canva 設計…';
+    const created=await api('/studio/api/admin/canva/autofill',{method:'POST',body:JSON.stringify({brand_template_id:templateId,data})});
+    let wrapper=created.job||created,job=wrapper.job||wrapper,id=job.id;
+    if(!id)throw new Error('Canva Autofill 沒有回傳 job id');
+    for(let n=0;n<30;n++){
+      if(job.status==='success'){
+        const design=job.result?.design,designId=design?.id,url=design?.urls?.edit_url||design?.url;
+        if(editingSocialId&&designId) await api('/studio/api/admin/social/'+editingSocialId+'/canva',{method:'POST',body:JSON.stringify({design_id:designId})}).catch(()=>{});
+        $('#canvaStatus').innerHTML=url?`Canva 設計已建立：<a href="${e(url)}" target="_blank" rel="noopener">開啟 Canva 編輯 ↗</a>`:'Canva 設計已建立。';
+        toast('Canva 設計已建立');
+        return;
+      }
+      if(job.status==='failed')throw new Error(job.error?.message||'Canva Autofill 失敗');
+      await wait(800);
+      const d=await api('/studio/api/admin/canva/autofill/'+encodeURIComponent(id));job=d.job||d;
+    }
+    throw new Error('Canva Autofill 逾時，請稍後再查');
+  }catch(err){$('#canvaStatus').textContent=err.message;toast(err.message)}
+  finally{btn.disabled=false;btn.textContent=old}
+}
+$('#loadCanvaTemplatesBtn').onclick=loadCanvaTemplates;
+$('#loadCanvaDatasetBtn').onclick=loadCanvaDataset;
+$('#createCanvaDesignBtn').onclick=createCanvaDesign;
 
 async function loadSystem(){
   try{

@@ -28,8 +28,14 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
   if(method==='GET' && seg[0]==='api' && seg[1]==='public' && seg[2]==='articles' && seg[3]) return json({article:await getPublicArticle(env,seg[3])});
 
   if(method==='POST' && p==='/api/newsletter/subscribe') return json(await subscribe(env,request,await readJson(request)),202);
-  if(method==='GET' && p==='/api/newsletter/verify') return verifySubscription(env,url.searchParams.get('token')||'');
-  if(method==='GET' && p==='/api/newsletter/unsubscribe') return unsubscribe(env,url.searchParams.get('token')||'');
+  if(method==='GET' && p==='/api/newsletter/verify') return verifySubscription(env,url.searchParams.get('token')||'',false);
+  if(method==='POST' && p==='/api/newsletter/verify'){
+    const form=await request.formData(); return verifySubscription(env,String(form.get('token')||''),true);
+  }
+  if(method==='GET' && p==='/api/newsletter/unsubscribe') return unsubscribe(env,url.searchParams.get('token')||'',false);
+  if(method==='POST' && p==='/api/newsletter/unsubscribe'){
+    const form=await request.formData(); return unsubscribe(env,String(form.get('token')||''),true);
+  }
   if(method==='POST' && p==='/api/webhooks/resend') return json(await handleResendWebhook(env,request));
 
   if(method==='GET' && seg[0]==='api' && seg[1]==='oauth' && seg[2] && seg[3]==='callback'){

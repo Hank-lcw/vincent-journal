@@ -141,11 +141,55 @@ async function loadArticles(){
     bindArticleActions($('#articlesTable'));
   }catch(err){toast(err.message)}
 }
+function articleReviewButtons(a){
+  if(!canReview())return '<span class="badge warn">等待 Reviewer</span>';
+  if(a.status==='in_review')return `<button class="btn primary" data-pub-article="approve-publish" data-id="${e(a.id)}">核准並發布</button><button class="btn" data-pub-article="reject" data-id="${e(a.id)}">退回</button>`;
+  if(a.status==='approved')return `<button class="btn primary" data-pub-article="publish" data-id="${e(a.id)}">發布</button><button class="btn" data-pub-article="reject" data-id="${e(a.id)}">退回</button>`;
+  return '';
+}
+function issueReviewButtons(x){
+  if(!canReview())return '<span class="badge warn">等待 Reviewer</span>';
+  if(x.status==='in_review')return `<button class="btn primary" data-pub-issue="approve" data-id="${e(x.id)}">核准</button><button class="btn" data-pub-issue="reject" data-id="${e(x.id)}">退回</button>`;
+  if(x.status==='approved')return `<button class="btn primary" data-pub-issue="publish" data-id="${e(x.id)}">發布刊物</button><button class="btn" data-pub-issue="reject" data-id="${e(x.id)}">退回</button>`;
+  return '';
+}
+function campaignReviewButtons(x){
+  if(!canReview())return '<span class="badge warn">等待 Reviewer</span>';
+  if(x.status==='in_review')return `<button class="btn primary" data-pub-campaign="approve" data-id="${e(x.id)}">核准</button><button class="btn" data-pub-campaign="reject" data-id="${e(x.id)}">退回</button>`;
+  if(x.status==='approved')return `<button class="btn primary" data-pub-campaign="send" data-id="${e(x.id)}">${x.scheduled_at&&new Date(x.scheduled_at).getTime()>Date.now()+60000?'排程寄送':'立即寄送'}</button><button class="btn" data-pub-campaign="reject" data-id="${e(x.id)}">退回</button>`;
+  return '';
+}
+function socialReviewButtons(x){
+  if(!canReview())return '<span class="badge warn">等待 Reviewer</span>';
+  if(x.status==='in_review')return `<button class="btn primary" data-pub-social="approve" data-id="${e(x.id)}">核准</button><button class="btn" data-pub-social="reject" data-id="${e(x.id)}">退回</button>`;
+  if(x.status==='approved')return `<button class="btn primary" data-pub-social="publish" data-id="${e(x.id)}">${x.scheduled_at?'排程發布':'發布'}</button><button class="btn" data-pub-social="reject" data-id="${e(x.id)}">退回</button>`;
+  return '';
+}
+function approvalSection(title,items,render){
+  return `<div style="margin-top:22px"><div class="meta">${e(title)}</div>${items.length?items.map(render).join(''):'<p class="empty-state">目前沒有待處理項目。</p>'}</div>`;
+}
 async function loadPublish(){
   try{
-    const d=await api('/studio/api/admin/articles');const items=(d.articles||[]).filter(a=>['in_review','approved'].includes(a.status));
-    $('#approvalSummary').innerHTML=items.length?items.map(a=>`<div class="status-row"><div><strong>${e(a.title)}</strong><div class="meta">${e(statusLabel(a.status))} · ${e(categoryLabel(a.category))}</div></div><div class="studio-actions">${articleActionButtons(a)}</div></div>`).join(''):'<p class="empty-state">目前沒有待審或待發布文章。</p>';
-    bindArticleActions($('#approvalSummary'));
+    const [arts,iss,camps,soc]=await Promise.all([
+      api('/studio/api/admin/articles'),
+      api('/studio/api/admin/issues'),
+      api('/studio/api/admin/newsletter/campaigns'),
+      api('/studio/api/admin/social')
+    ]);
+    articlesCache=arts.articles||[];issuesCache=iss.issues||[];campaignsCache=camps.campaigns||[];socialDraftsCache=soc.drafts||[];
+    const pa=articlesCache.filter(a=>['in_review','approved'].includes(a.status));
+    const pi=issuesCache.filter(x=>['in_review','approved'].includes(x.status));
+    const pc=campaignsCache.filter(x=>['in_review','approved'].includes(x.status));
+    const ps=socialDraftsCache.filter(x=>['in_review','approved'].includes(x.status));
+    $('#approvalSummary').innerHTML=
+      approvalSection('文章',pa,a=>`<div class="status-row"><div><strong>${e(a.title)}</strong><div class="meta">${e(statusLabel(a.status))} · ${e(categoryLabel(a.category))}</div></div><div class="studio-actions">${articleReviewButtons(a)}</div></div>`)+
+      approvalSection('刊物',pi,x=>`<div class="status-row"><div><strong>VOL. ${String(x.volume).padStart(3,'0')} · ${e(x.title)}</strong><div class="meta">${e(statusLabel(x.status))} · ${e(x.article_count||0)} 篇文章</div></div><div class="studio-actions">${issueReviewButtons(x)}</div></div>`)+
+      approvalSection('電子報',pc,x=>`<div class="status-row"><div><strong>${e(x.subject)}</strong><div class="meta">${e(statusLabel(x.status))}${x.scheduled_at?' · '+e(String(x.scheduled_at).slice(0,16)):''}</div></div><div class="studio-actions">${campaignReviewButtons(x)}</div></div>`)+
+      approvalSection('社群',ps,x=>`<div class="status-row"><div><strong>${e(x.title||x.article_title||x.platform)}</strong><div class="meta">${e(x.platform)} · ${e(statusLabel(x.status))}${x.scheduled_at?' · '+e(String(x.scheduled_at).slice(0,16)):''}</div></div><div class="studio-actions">${socialReviewButtons(x)}</div></div>`);
+    $$('[data-pub-article]').forEach(b=>b.onclick=()=>runArticleAction(b.dataset.id,b.dataset.pubArticle));
+    $$('[data-pub-issue]').forEach(b=>b.onclick=()=>runIssueAction(b.dataset.id,b.dataset.pubIssue));
+    $$('[data-pub-campaign]').forEach(b=>b.onclick=()=>campaignAction(b.dataset.id,b.dataset.pubCampaign));
+    $$('[data-pub-social]').forEach(b=>b.onclick=()=>socialAction(b.dataset.id,b.dataset.pubSocial));
   }catch(err){toast(err.message)}
 }
 $('#newArticleBtn').onclick=()=>openArticleEditor();

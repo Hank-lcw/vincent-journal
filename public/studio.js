@@ -378,6 +378,7 @@ async function prepareMediaForSocial(id,platform){
   const label={instagram:'Instagram',facebook:'Facebook',threads:'Threads',xiaohongshu:'小紅書'}[platform]||platform;
   const switched=chosen.id!==id;
   $('#socialAiBrief').textContent=`已從媒體工作室帶入 ${label} 素材：${chosen.filename}${switched?'（已自動選擇同一家族較適合的平台比例版本）':''}。下一步可選來源文章，再用 AI 依平台產生文案。`;
+  renderSocialPreview();
   $('#socialEditorPanel').scrollIntoView({behavior:'smooth',block:'start'});
   toast(`已帶入 ${label} 草稿編輯器`);
 }
@@ -972,6 +973,83 @@ async function socialAction(id,action){
     await loadSocial();
   }catch(err){toast(err.message)}
 }
+const socialPlatformLabel=p=>({instagram:'Instagram',facebook:'Facebook',threads:'Threads',xiaohongshu:'小紅書'})[p]||p;
+function selectedSocialMedia(){
+  const ids=[...($('#socialMedia')?.selectedOptions||[])].map(o=>o.value);
+  return ids.map(id=>mediaCache.find(m=>m.id===id)).filter(Boolean);
+}
+function previewText(text,limit){
+  const clean=String(text||'').trim();
+  if(!clean)return {html:'<span class="social-preview-muted">尚未輸入貼文文字</span>',truncated:false};
+  const clipped=clean.length>limit?clean.slice(0,limit).trimEnd()+'…':clean;
+  return {html:e(clipped).replace(/\n/g,'<br>'),truncated:clean.length>limit};
+}
+function previewMediaMarkup(items,platform){
+  if(!items.length)return '<div class="social-preview-empty-media"><span>尚未選擇圖片</span></div>';
+  const first=items[0],count=items.length;
+  const cls=platform==='xiaohongshu'?'is-xhs':platform==='threads'?'is-threads':'';
+  return `<div class="social-preview-media ${cls}"><img src="${e(mediaUrl(first))}" alt="${e(first.alt_text||'')}">${count>1?`<span class="social-preview-count">1 / ${count}</span>`:''}</div>`;
+}
+function socialPreviewChecks(platform,items,title,copy){
+  const checks=[];
+  if(platform==='instagram'){
+    checks.push(items.length?['ok',`已選 ${items.length} 張圖片`]:['warn','Instagram 草稿送審前需要圖片']);
+  }else{
+    checks.push(items.length?['ok',`已選 ${items.length} 張圖片`]:['neutral','目前沒有圖片']);
+  }
+  if(platform==='xiaohongshu') checks.push(title.trim()?['ok','已有筆記標題']:['warn','小紅書建議先完成標題']);
+  checks.push(copy.trim()?['ok',`貼文文字 ${copy.trim().length} 字`]:['warn','貼文文字尚未完成']);
+  if(items[0]){
+    const preset=mediaPreset(items[0]);
+    const recommended=platform==='instagram'?['instagram-4x5','instagram-1x1']:
+      platform==='xiaohongshu'?['instagram-4x5','instagram-1x1']:
+      platform==='threads'?['instagram-1x1','instagram-4x5']:
+      ['instagram-4x5','instagram-1x1','journal-16x9'];
+    checks.push(recommended.includes(preset)?['ok',`素材比例適合 ${socialPlatformLabel(platform)}`]:
+      preset?['neutral',`目前素材：${mediaSourceLabel(items[0])}`]:['neutral','目前使用原始比例素材']);
+  }
+  return checks.map(([state,label])=>`<div class="social-preview-check ${state}"><span></span><b>${e(label)}</b></div>`).join('');
+}
+function renderSocialPreview(){
+  const root=$('#socialPreview');if(!root)return;
+  const platform=$('#socialPlatform')?.value||'instagram';
+  const title=$('#socialTitle')?.value||'';
+  const copy=$('#socialCopy')?.value||'';
+  const items=selectedSocialMedia();
+  $('#socialPreviewPlatform').textContent=socialPlatformLabel(platform);
+  const titleText=e(title.trim()||'尚未命名的草稿');
+  const media=previewMediaMarkup(items,platform);
+  const copyPreview=previewText(copy,platform==='threads'?280:platform==='facebook'?220:platform==='xiaohongshu'?170:155);
+
+  if(platform==='instagram'){
+    root.innerHTML=`<div class="pv-ig">
+      <div class="pv-account"><span class="pv-avatar">VJ</span><div><strong>vincentjournal</strong><small>VINCENT JOURNAL</small></div><b>•••</b></div>
+      ${media}
+      <div class="pv-actions"><span>♡</span><span>○</span><span>↗</span><span class="push">◇</span></div>
+      <div class="pv-caption"><strong>vincentjournal</strong> ${copyPreview.html}${copyPreview.truncated?' <span class="social-preview-more">更多</span>':''}</div>
+    </div>`;
+  }else if(platform==='facebook'){
+    root.innerHTML=`<div class="pv-fb">
+      <div class="pv-account"><span class="pv-avatar">VJ</span><div><strong>VINCENT JOURNAL</strong><small>剛剛 · 公開</small></div><b>•••</b></div>
+      <div class="pv-copy">${copyPreview.html}${copyPreview.truncated?' <span class="social-preview-more">顯示更多</span>':''}</div>
+      ${media}
+      <div class="pv-fb-actions"><span>讚</span><span>留言</span><span>分享</span></div>
+    </div>`;
+  }else if(platform==='threads'){
+    root.innerHTML=`<div class="pv-threads">
+      <div class="pv-thread-line"><span class="pv-avatar">VJ</span><div class="pv-thread-body"><div class="pv-thread-user"><strong>vincentjournal</strong><span>現在</span><b>•••</b></div>
+      <div class="pv-copy">${copyPreview.html}</div>${media}<div class="pv-thread-actions">♡　○　↗　◇</div></div></div>
+    </div>`;
+  }else{
+    const xcopy=previewText(copy,180);
+    root.innerHTML=`<div class="pv-xhs">
+      ${media}
+      <div class="pv-xhs-body"><h4>${titleText}</h4><div class="pv-copy">${xcopy.html}${xcopy.truncated?' <span class="social-preview-more">展開</span>':''}</div>
+      <div class="pv-xhs-foot"><span class="pv-avatar mini">VJ</span><strong>VINCENT JOURNAL</strong><span class="push">♡ 收藏</span></div></div>
+    </div>`;
+  }
+  $('#socialPreviewChecks').innerHTML=socialPreviewChecks(platform,items,title,copy);
+}
 function resetSocialEditor(){
   editingSocialId=null;
   $('#socialEditorTitle').textContent='建立社群草稿';
@@ -985,6 +1063,7 @@ function resetSocialEditor(){
   $('#saveSocialDraftBtn').textContent='儲存草稿';
   $('#submitSocialDraftBtn').textContent='儲存並送審';
   $('#cancelSocialEditBtn').hidden=true;
+  renderSocialPreview();
 }
 function openSocialEditor(id){
   const d=socialDraftsCache.find(x=>x.id===id); if(!d)return toast('找不到社群草稿');
@@ -1001,6 +1080,7 @@ function openSocialEditor(id){
   $('#saveSocialDraftBtn').textContent='儲存修改';
   $('#submitSocialDraftBtn').textContent='儲存並送審';
   $('#cancelSocialEditBtn').hidden=false;
+  renderSocialPreview();
   $('#socialEditorPanel').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function renderSocialDrafts(list){
@@ -1016,6 +1096,7 @@ function fillSocialSources(){
   if([...$('#socialArticle').options].some(o=>o.value===selectedArticle)) $('#socialArticle').value=selectedArticle;
   $('#socialMedia').innerHTML=mediaCache.map(m=>`<option value="${e(m.id)}">${e(m.filename)} · ${m.visibility==='public'?'公開':'私人'}</option>`).join('');
   [...$('#socialMedia').options].forEach(o=>o.selected=selectedMedia.has(o.value));
+  renderSocialPreview();
 }
 async function generateSocialCopy(){
   const articleId=$('#socialArticle').value;
@@ -1027,6 +1108,7 @@ async function generateSocialCopy(){
     $('#socialTitle').value=d.title||title;
     $('#socialCopy').value=d.copy||body;
     $('#socialAiBrief').textContent=d.visual_brief?('視覺建議：'+d.visual_brief):'';
+    renderSocialPreview();
     toast('已依平台產生文案，發布前請人工確認');
   }catch(err){toast(err.message)}
   finally{btn.disabled=false;btn.textContent=old}
@@ -1052,7 +1134,7 @@ async function loadSocial(){
   try{
     const promises=[api('/studio/api/admin/social'),canAdmin()?api('/studio/api/admin/integrations'):Promise.resolve({integrations:[]}),api('/studio/api/admin/articles'),fetchMedia()];
     const [drafts,intg,arts]=await Promise.all(promises);articlesCache=arts.articles||articlesCache;
-    renderIntegrationStatus(intg.integrations||[]);fillSocialSources();renderSocialDrafts(drafts.drafts||[]);
+    renderIntegrationStatus(intg.integrations||[]);fillSocialSources();renderSocialDrafts(drafts.drafts||[]);renderSocialPreview();
   }catch(err){$('#socialStatus').innerHTML=`<p>${e(err.message)}</p>`}
 }
 $('#socialPlatform').onchange=()=>{
@@ -1064,7 +1146,11 @@ $('#socialPlatform').onchange=()=>{
       $('#socialAiBrief').textContent='已依新平台自動切換為同一家族較適合的圖片比例：'+preferred.filename;
     }
   }
+  renderSocialPreview();
 };
+$('#socialTitle').oninput=renderSocialPreview;
+$('#socialCopy').oninput=renderSocialPreview;
+$('#socialMedia').onchange=renderSocialPreview;
 $('#generateSocialCopyBtn').onclick=generateSocialCopy;
 $('#saveSocialDraftBtn').onclick=()=>saveSocial(false);
 $('#submitSocialDraftBtn').onclick=()=>saveSocial(true);

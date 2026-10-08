@@ -191,6 +191,6 @@ export async function systemIntegrationStatus(env:Env):Promise<any>{
   return { integrations:results||[], configured:{
     openai:Boolean(env.OPENAI_API_KEY), resend:Boolean(env.RESEND_API_KEY&&env.RESEND_WEBHOOK_SECRET), canva:Boolean(env.CANVA_CLIENT_ID&&env.CANVA_CLIENT_SECRET),
     meta:Boolean(env.META_APP_ID&&env.META_APP_SECRET), threads:Boolean(env.THREADS_APP_ID&&env.THREADS_APP_SECRET), xiaohongshu:Boolean(env.XHS_CLIENT_ID&&env.XHS_CLIENT_SECRET),
-    encryption:Boolean(env.TOKEN_ENCRYPTION_KEY_B64), access:Boolean(env.TEAM_DOMAIN&&env.POLICY_AUD), turnstile:Boolean(env.TURNSTILE_SECRET_KEY)
+    encryption:Boolean(env.TOKEN_ENCRYPTION_KEY_B64), access:Boolean(env.TEAM_DOMAIN&&env.POLICY_AUD), turnstile:Boolean(env.TURNSTILE_SECRET_KEY&&env.TURNSTILE_SITE_KEY)
   }};
 }

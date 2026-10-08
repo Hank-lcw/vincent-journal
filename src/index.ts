@@ -12,6 +12,7 @@ import { listBackups, manualBackup, createBackup } from './backup';
 import { listAdminIssues, getIssueArticlesAdmin, createIssue, updateIssue, setIssueArticles, transitionIssue, listPublicIssues, getPublicIssue } from './issues';
 import { runDueJobs } from './jobs';
 import { checkOpenAI } from './openai';
+import { getSiteVisuals, assignSiteVisual } from './site-visuals';
 
 function parts(pathname:string):string[]{ return pathname.split('/').filter(Boolean).map(decodeURIComponent); }
 function isStudioPath(path:string):boolean { return path==='/studio' || path.startsWith('/api/admin/'); }
@@ -26,6 +27,7 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
   const publicHtmlAliases:Record<string,string>={'/':'/index.html','/discover':'/discover.html','/article':'/article.html','/issue':'/issue.html'};
   if(method==='GET' && publicHtmlAliases[p]){ const assetUrl=new URL(request.url); assetUrl.pathname=publicHtmlAliases[p]; return env.ASSETS.fetch(new Request(assetUrl.toString(),request)); }
 
+  if(method==='GET' && p==='/api/public/site-visuals') return json({visuals:await getSiteVisuals(env)});
   if(method==='GET' && p==='/api/public/config') return json({turnstile_site_key:env.TURNSTILE_SECRET_KEY&&env.TURNSTILE_SITE_KEY?env.TURNSTILE_SITE_KEY:null});
   if(method==='GET' && p==='/api/public/articles') return json({articles:await listPublicArticles(env,url),managed:await areArticlesManaged(env)});
   if(method==='GET' && seg[0]==='api' && seg[1]==='public' && seg[2]==='articles' && seg[3]) return json({article:await getPublicArticle(env,seg[3])});
@@ -102,6 +104,8 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
       }
     }
 
+    if(method==='GET' && p==='/api/admin/site-visuals') return json({visuals:await getSiteVisuals(env,true)});
+    if(method==='PUT' && seg[2]==='site-visuals' && seg[3] && seg.length===4) return json({visuals:await assignSiteVisual(env,request,user,seg[3],await readJson(request))});
     if(method==='GET' && p==='/api/admin/media') return json({media:await listMedia(env)});
     if(method==='POST' && p==='/api/admin/media/upload') return json({media:await uploadMedia(env,request,user)},201);
     if(method==='POST' && p==='/api/admin/media/generate') return json({media:await generateImage(env,request,user,await readJson(request))},201);

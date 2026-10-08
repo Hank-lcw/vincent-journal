@@ -133,6 +133,18 @@
     <p class="form-note" id="socialAiBrief"></p>
     <div id="socialDrafts"></div>
   </div>
+  <div class="panel" id="canvaPanel">
+    <div class="panel-head"><div><h2>Canva Brand Template</h2><p>載入有 Autofill 欄位的品牌模板，文字直接填入；圖片會先從公開素材庫安全匯入 Canva，再建立新設計。</p></div></div>
+    <div class="form-grid">
+      <div class="field"><label>搜尋模板</label><input id="canvaTemplateSearch" placeholder="例如 Instagram、Quote、Journal"></div>
+      <div class="field field-action"><button class="btn" id="loadCanvaTemplatesBtn">載入 Canva 模板</button></div>
+      <div class="field field-wide"><label>Brand Template</label><select id="canvaTemplate"><option value="">尚未載入</option></select></div>
+    </div>
+    <div class="studio-actions editor-actions"><button class="btn" id="loadCanvaDatasetBtn">讀取 Autofill 欄位</button></div>
+    <div id="canvaFields" class="form-grid" style="margin-top:16px"></div>
+    <div class="studio-actions editor-actions"><button class="btn primary" id="createCanvaDesignBtn" disabled>建立 Canva 設計</button></div>
+    <p class="form-note" id="canvaStatus">需要先在「系統與權限」完成 Canva 連線。</p>
+  </div>
 </section>
 
 <section class="view" data-view="system">

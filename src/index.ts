@@ -9,6 +9,7 @@ import { listIntegrations, startOAuth, handleOAuthCallback, disconnectIntegratio
 import { listBrandTemplates, brandTemplateDataset, createAutofill, getAutofillJob, attachCanvaDesign, uploadPublicAssetToCanva, getCanvaAssetUploadJob } from './canva';
 import { listSocialDrafts, createSocialDraft, updateSocialDraft, submitSocialDraft, rejectSocialDraft, approveSocialDraft, publishSocialDraft, generateSocialCopy } from './social';
 import { listBackups, manualBackup, createBackup } from './backup';
+import { listAdminIssues, getIssueArticlesAdmin, createIssue, updateIssue, setIssueArticles, transitionIssue, listPublicIssues, getPublicIssue } from './issues';
 import { runDueJobs } from './jobs';
 
 function parts(pathname:string):string[]{ return pathname.split('/').filter(Boolean).map(decodeURIComponent); }
@@ -27,6 +28,9 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
   if(method==='GET' && p==='/api/public/config') return json({turnstile_site_key:env.TURNSTILE_SECRET_KEY&&env.TURNSTILE_SITE_KEY?env.TURNSTILE_SITE_KEY:null});
   if(method==='GET' && p==='/api/public/articles') return json({articles:await listPublicArticles(env,url)});
   if(method==='GET' && seg[0]==='api' && seg[1]==='public' && seg[2]==='articles' && seg[3]) return json({article:await getPublicArticle(env,seg[3])});
+  if(method==='GET' && p==='/api/public/issues') return json({issues:await listPublicIssues(env)});
+  if(method==='GET' && p==='/api/public/issues/current') return json({issue:await getPublicIssue(env)});
+  if(method==='GET' && seg[0]==='api' && seg[1]==='public' && seg[2]==='issues' && seg[3]) return json({issue:await getPublicIssue(env,seg[3])});
 
   if(method==='POST' && p==='/api/newsletter/subscribe') return json(await subscribe(env,request,await readJson(request)),202);
   if(method==='GET' && p==='/api/newsletter/verify') return verifySubscription(env,url.searchParams.get('token')||'',false);
@@ -78,6 +82,19 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
       if(method==='POST' && seg[4]==='revisions' && seg[5] && seg[6]==='restore') return json({article:await restoreArticleRevision(env,request,user,id,seg[5])});
       if(method==='POST' && seg[4] && ['submit','approve','reject','publish','archive'].includes(seg[4])){
         const input=await readJson(request).catch(()=>({})); return json({article:await transitionArticle(env,request,user,id,seg[4] as any,String((input as any)?.note||''))});
+      }
+    }
+
+    if(method==='GET' && p==='/api/admin/issues') return json({issues:await listAdminIssues(env,user)});
+    if(method==='POST' && p==='/api/admin/issues') return json({issue:await createIssue(env,request,user,await readJson(request))},201);
+    if(seg[2]==='issues' && seg[3]){
+      const id=seg[3];
+      if(method==='PATCH' && seg.length===4) return json({issue:await updateIssue(env,request,user,id,await readJson(request))});
+      if(method==='GET' && seg[4]==='articles') return json({articles:await getIssueArticlesAdmin(env,user,id)});
+      if(method==='PUT' && seg[4]==='articles') return json({articles:await setIssueArticles(env,request,user,id,await readJson(request))});
+      if(method==='POST' && seg[4] && ['submit','approve','reject','publish','archive'].includes(seg[4])){
+        const input:any=await readJson(request).catch(()=>({}));
+        return json({issue:await transitionIssue(env,request,user,id,seg[4] as any,String(input.note||''))});
       }
     }
 

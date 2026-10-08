@@ -50,6 +50,12 @@ export async function subscribe(env: Env, request: Request, input: any): Promise
   const email = normalizeEmail(String(input.email || ''));
   if (!validEmail(email)) throw new HttpError(400, '電子郵件格式不正確');
   if (!(await hasMailDns(email))) throw new HttpError(400, '這個電子郵件網域似乎無法接收郵件');
+  const ipHash = await hashIp(request);
+  if(ipHash){
+    const since=new Date(Date.now()-10*60_000).toISOString();
+    const rate=await env.DB.prepare(`SELECT COUNT(*) AS n FROM subscribers WHERE consent_ip_hash=? AND updated_at>=?`).bind(ipHash,since).first<any>();
+    if(Number(rate?.n||0)>=12) throw new HttpError(429,'訂閱請求過於頻繁，請稍後再試');
+  }
   const suppression = await env.DB.prepare(`SELECT id FROM suppressions WHERE email=? COLLATE NOCASE LIMIT 1`).bind(email).first();
   if (suppression) return {ok:true,message:'如果這個信箱可以訂閱，我們會寄送確認信。'};
   const existing = await env.DB.prepare(`SELECT * FROM subscribers WHERE email=? COLLATE NOCASE`).bind(email).first<any>();
@@ -60,7 +66,7 @@ export async function subscribe(env: Env, request: Request, input: any): Promise
   const verifyToken = randomToken(32), unsubToken = randomToken(32);
   const verifyHash = await sha256(verifyToken), unsubHash = await sha256(unsubToken);
   const expires = new Date(Date.now()+24*60*60*1000).toISOString();
-  const ipHash = await hashIp(request), ua = (request.headers.get('user-agent')||'').slice(0,500);
+  const ua = (request.headers.get('user-agent')||'').slice(0,500);
   const id = existing?.id || uuid();
   if (existing) {
     await env.DB.prepare(`UPDATE subscribers SET status='pending',verification_token_hash=?,verification_expires_at=?,unsubscribe_token_hash=COALESCE(unsubscribe_token_hash,?),consent_ip_hash=?,consent_user_agent=?,consent_at=?,updated_at=? WHERE id=?`)

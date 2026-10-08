@@ -256,6 +256,13 @@
           <div class="field field-wide"><label>貼文文字</label><textarea id="socialCopy" maxlength="12000"></textarea></div>
           <div class="field"><label>預計發布時間（選填）</label><input id="socialSchedule" type="datetime-local"></div>
           <div class="field field-wide"><label>圖片素材（可多選）</label><select id="socialMedia" multiple class="multi-select"></select></div>
+          <div class="field field-wide social-carousel-field">
+            <div class="social-carousel-head">
+              <div><label>輪播編排</label><p class="form-note">第一張即封面。可拖曳排序；手機可使用左右箭頭調整。</p></div>
+              <button class="btn" id="clearSocialMediaBtn" type="button">清空圖片</button>
+            </div>
+            <div id="socialCarousel" class="social-carousel-builder" aria-live="polite"></div>
+          </div>
         </div>
         <div class="studio-actions editor-actions"><button class="btn" id="generateSocialCopyBtn">AI 依平台產生文案</button><button class="btn" id="saveSocialDraftBtn">儲存草稿</button><button class="btn primary" id="submitSocialDraftBtn">儲存並送審</button><button class="btn" id="cancelSocialEditBtn" hidden>取消編輯</button></div>
         <p class="form-note" id="socialAiBrief"></p>

@@ -1,7 +1,7 @@
 (()=>{
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const e=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-let me=null, articlesCache=[], mediaCache=[], editingArticleId=null, editMediaId=null;
+let me=null, articlesCache=[], mediaCache=[], campaignsCache=[], editingArticleId=null, editMediaId=null, editingCampaignId=null;
 const roleRank={editor:10,reviewer:20,admin:30,owner:40};
 const canReview=()=>roleRank[me?.role]>=20, canAdmin=()=>roleRank[me?.role]>=30;
 const categoryLabel=s=>({aesthetics:'美學觀點','healthy-aging':'健康老化',longevity:'長壽科學'})[s]||s;
@@ -166,33 +166,82 @@ $('#cancelEditImageBtn').onclick=()=>{$('#aiEditPanel').hidden=true;editMediaId=
 
 function campaignActions(c){
   const out=[];
-  if(canReview()&&c.status==='in_review')out.push(`<button class="btn primary" data-campaign-action="approve" data-id="${e(c.id)}">核准</button>`);
-  if(canReview()&&c.status==='approved')out.push(`<button class="btn primary" data-campaign-action="send" data-id="${e(c.id)}">立即寄送</button>`);
+  if(['draft','in_review'].includes(c.status)) out.push(`<button class="btn" data-campaign-edit="${e(c.id)}">編輯</button>`);
+  if(c.status==='draft') out.push(`<button class="btn" data-campaign-action="submit" data-id="${e(c.id)}">送審</button>`);
+  if(canReview()&&c.status==='in_review'){
+    out.push(`<button class="btn primary" data-campaign-action="approve" data-id="${e(c.id)}">核准</button>`);
+    out.push(`<button class="btn" data-campaign-action="reject" data-id="${e(c.id)}">退回草稿</button>`);
+  }
+  if(canReview()&&c.status==='approved'){
+    out.push(`<button class="btn primary" data-campaign-action="send" data-id="${e(c.id)}">立即寄送</button>`);
+    out.push(`<button class="btn" data-campaign-action="reject" data-id="${e(c.id)}">退回草稿</button>`);
+  }
   return out.join('');
 }
-async function createCampaign(submit){
+function resetCampaignEditor(){
+  editingCampaignId=null;
+  $('#campaignSubject').value='';
+  $('#campaignPreview').value='';
+  $('#campaignHtml').value='';
+  $('#campaignText').value='';
+  $('#campaignEditorTitle').textContent='建立新一期';
+  $('#saveCampaignDraftBtn').textContent='儲存草稿';
+  $('#submitCampaignBtn').textContent='儲存並送審';
+  $('#cancelCampaignEditBtn').hidden=true;
+}
+function openCampaignEditor(id){
+  const row=campaignsCache.find(x=>x.id===id); if(!row) return toast('找不到電子報草稿');
+  if(!['draft','in_review'].includes(row.status)) return toast('這份電子報目前不可編輯');
+  editingCampaignId=id;
+  $('#campaignSubject').value=row.subject||'';
+  $('#campaignPreview').value=row.preview_text||'';
+  $('#campaignHtml').value=row.html||'';
+  $('#campaignText').value=row.text_body||'';
+  $('#campaignEditorTitle').textContent='編輯電子報';
+  $('#saveCampaignDraftBtn').textContent='儲存修改';
+  $('#submitCampaignBtn').textContent='儲存並送審';
+  $('#cancelCampaignEditBtn').hidden=false;
+  $('#campaignEditorPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function saveCampaign(submit){
+  const payload={subject:$('#campaignSubject').value,preview_text:$('#campaignPreview').value,html:$('#campaignHtml').value,text_body:$('#campaignText').value};
   try{
-    await api('/studio/api/admin/newsletter/campaigns',{method:'POST',body:JSON.stringify({subject:$('#campaignSubject').value,preview_text:$('#campaignPreview').value,html:$('#campaignHtml').value,text_body:$('#campaignText').value,submit_for_review:submit})});
-    toast(submit?'電子報已建立並送審':'電子報草稿已建立');
-    $('#campaignSubject').value='';$('#campaignPreview').value='';$('#campaignHtml').value='';$('#campaignText').value='';await loadNewsletter();
+    if(editingCampaignId){
+      await api('/studio/api/admin/newsletter/campaigns/'+editingCampaignId,{method:'PATCH',body:JSON.stringify(payload)});
+      if(submit) await api('/studio/api/admin/newsletter/campaigns/'+editingCampaignId+'/submit',{method:'POST',body:'{}'});
+      toast(submit?'電子報已更新並送審':'電子報草稿已更新');
+    }else{
+      await api('/studio/api/admin/newsletter/campaigns',{method:'POST',body:JSON.stringify({...payload,submit_for_review:submit})});
+      toast(submit?'電子報已建立並送審':'電子報草稿已建立');
+    }
+    resetCampaignEditor(); await loadNewsletter();
   }catch(err){toast(err.message)}
 }
-async function campaignAction(id,action){try{await api('/studio/api/admin/newsletter/campaigns/'+id+'/'+action,{method:'POST',body:'{}'});toast(action==='approve'?'電子報已核准':'已送交寄送服務');await loadNewsletter()}catch(err){toast(err.message)}}
+async function campaignAction(id,action){
+  try{
+    await api('/studio/api/admin/newsletter/campaigns/'+id+'/'+action,{method:'POST',body:'{}'});
+    toast(({submit:'電子報已送審',approve:'電子報已核准',reject:'電子報已退回草稿',send:'已送交寄送服務'})[action]||'電子報狀態已更新');
+    await loadNewsletter();
+  }catch(err){toast(err.message)}
+}
 function renderCampaigns(list){
-  $('#campaignList').innerHTML=list.length?list.map(c=>`<div class="campaign-row"><div><strong>${e(c.subject)}</strong><div class="meta">${e(statusLabel(c.status))} · ${e((c.created_at||'').slice(0,16))}</div></div><div class="studio-actions">${campaignActions(c)}</div></div>`).join(''):'<p class="empty-state">目前沒有電子報草稿。</p>';
+  campaignsCache=list;
+  $('#campaignList').innerHTML=list.length?list.map(c=>`<div class="campaign-row"><div><strong>${e(c.subject)}</strong><div class="meta">${e(statusLabel(c.status))} · ${e((c.updated_at||c.created_at||'').slice(0,16))}${c.scheduled_at?' · 排程 '+e(String(c.scheduled_at).slice(0,16)):''}</div></div><div class="studio-actions">${campaignActions(c)}</div></div>`).join(''):'<p class="empty-state">目前沒有電子報草稿。</p>';
   $$('[data-campaign-action]').forEach(b=>b.onclick=()=>campaignAction(b.dataset.id,b.dataset.campaignAction));
+  $$('[data-campaign-edit]').forEach(b=>b.onclick=()=>openCampaignEditor(b.dataset.campaignEdit));
 }
 async function loadNewsletter(){
   try{
     const [subs,camps]=await Promise.all([canAdmin()?api('/studio/api/admin/newsletter/subscribers'):Promise.resolve({subscribers:[]}),api('/studio/api/admin/newsletter/campaigns')]);
     const s=subs.subscribers||[];
-    for(const st of ['active','pending','unsubscribed','suppressed']){const id={active:'activeSubs',pending:'pendingSubs',unsubscribed:'unsubSubs',suppressed:'suppressedSubs'}[st];$('#'+id).textContent=s.filter(x=>x.status===st).length}
+    for(const st of ['active','pending','unsubscribed','suppressed']){const id={active:'activeSubs',pending:'pendingSubs',unsubscribed:'unsubSubs',suppressed:'suppressedSubs'}[st];$('#'+id).textContent=canAdmin()?s.filter(x=>x.status===st).length:'—'}
     $('#newsletterTable').innerHTML=canAdmin()?`<table class="table"><thead><tr><th>Email</th><th>狀態</th><th>來源</th><th>加入時間</th></tr></thead><tbody>${s.slice(0,200).map(x=>`<tr><td>${e(x.email)}</td><td>${e(statusLabel(x.status))}</td><td>${e(x.source)}</td><td>${e((x.created_at||'').slice(0,16))}</td></tr>`).join('')}</tbody></table>`:'<p class="empty-state">訂閱者個資僅 Owner／Admin 可查看。</p>';
     renderCampaigns(camps.campaigns||[]);
   }catch(err){toast(err.message)}
 }
-$('#saveCampaignDraftBtn').onclick=()=>createCampaign(false);
-$('#submitCampaignBtn').onclick=()=>createCampaign(true);
+$('#saveCampaignDraftBtn').onclick=()=>saveCampaign(false);
+$('#submitCampaignBtn').onclick=()=>saveCampaign(true);
+$('#cancelCampaignEditBtn').onclick=resetCampaignEditor;
 
 async function connectIntegration(provider){try{const d=await api('/studio/api/admin/integrations/'+provider+'/connect',{method:'POST',body:JSON.stringify({redirect_after:'/studio'})});if(d.authorize_url)location.href=d.authorize_url}catch(err){toast(err.message)}}
 function renderIntegrationStatus(integrations){

@@ -7,7 +7,7 @@ import { audit } from './audit';
 const categories = new Set(['aesthetics','healthy-aging','longevity']);
 
 function readHtmlAttr(raw:string,name:string):string|null {
-  const re=new RegExp('\\b'+name+'\\s*=\\s*(?:"([^"]*)"|\\'([^\\']*)\\'|([^\\s"\\'=<>]+))','i');
+  const re=new RegExp("\\b"+name+"\\s*=\\s*(?:\\\"([^\\\"]*)\\\"|'([^']*)'|([^\\s\\\"'=<>]+))","i");
   const m=raw.match(re); return m ? (m[1] ?? m[2] ?? m[3] ?? '') : null;
 }
 function safeHref(value:string):string|null {

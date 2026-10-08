@@ -149,6 +149,19 @@ function backToTop(){
   addEventListener('scroll',()=>{if(!raf)raf=requestAnimationFrame(update)},{passive:true});update();
 }
 
+function searchDialogExperience(){
+  const d=q('#searchDialog'),open=q('#searchOpen'),field=q('#searchField');
+  if(!d||d.dataset.vjDialog)return;
+  d.dataset.vjDialog='1';
+  open?.addEventListener('click',()=>setTimeout(()=>field?.focus({preventScroll:true}),45));
+  d.addEventListener('pointerdown',ev=>{
+    if(ev.target!==d)return;
+    const r=d.getBoundingClientRect();
+    const inside=ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top&&ev.clientY<=r.bottom;
+    if(!inside)d.close();
+  });
+}
+
 function pageLinks(){
   document.addEventListener('click',ev=>{
     if(ev.defaultPrevented||ev.button!==0||ev.metaKey||ev.ctrlKey||ev.shiftKey||ev.altKey)return;
@@ -167,7 +180,7 @@ function decorate(root=document){
   if(root===document||root.querySelector?.('#hero'))heroParallax();
 }
 
-pageEntrance();activeNav();readingProgress();backToTop();pageLinks();decorate();
+pageEntrance();activeNav();readingProgress();backToTop();searchDialogExperience();pageLinks();decorate();
 const mo=new MutationObserver(records=>{
   for(const rec of records)for(const node of rec.addedNodes)if(node.nodeType===1)decorate(node);
   heroParallax();readingProgress();

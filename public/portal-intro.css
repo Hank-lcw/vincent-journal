@@ -1,0 +1,61 @@
+/* VINCENT JOURNAL — A / Warm Editorial typography portal.
+   Isolated on the home page. Existing site sections, CMS, and article UI stay untouched. */
+.vj-portal-intro{
+  --vjp-ink:#232421;--vjp-paper:#f3efe7;--vjp-muted:#716b63;
+  --vjp-rule:rgba(57,49,41,.2);
+  position:relative;height:360vh;height:360svh;background:var(--vjp-paper);
+  color:var(--vjp-ink);font-family:"DM Sans","Noto Sans TC",sans-serif;
+  isolation:isolate;
+}
+.vj-portal-intro *, .vj-portal-intro *::before, .vj-portal-intro *::after{box-sizing:border-box}
+.vj-portal-intro .vjp-sticky{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;isolation:isolate;contain:paint}
+.vj-portal-intro .vjp-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 53%,#fbf8f1 0%,#f3efe7 61%,#e8ded1 100%)}
+.vj-portal-intro .vjp-svg{position:absolute;inset:0;width:100%;height:100%;z-index:2;overflow:visible;pointer-events:none}
+.vj-portal-intro .vjp-glyph-text{font-family:"DM Sans","Arial Black","Helvetica Neue",sans-serif;font-weight:800;letter-spacing:-8px}
+.vj-portal-intro .vjp-cover{position:absolute;inset:-3%;z-index:3;opacity:0;background:#d6c7b7 url("assets/vj-portal-warm-portrait.svg") center center/cover no-repeat;transform:scale(1.065);will-change:opacity,transform;pointer-events:none}
+.vj-portal-intro .vjp-cover-shade{position:absolute;inset:0;z-index:4;opacity:0;background:linear-gradient(90deg,rgba(244,238,228,.58),transparent 77%),linear-gradient(0deg,rgba(246,241,232,.77),transparent 58%);pointer-events:none}
+.vj-portal-intro .vjp-grain{position:absolute;inset:-5%;z-index:5;opacity:.07;pointer-events:none;mix-blend-mode:multiply;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.19'/%3E%3C/svg%3E")}
+.vj-portal-intro .vjp-meta{position:absolute;z-index:7;left:clamp(22px,4vw,70px);top:clamp(32px,6vh,90px);font-size:10px;line-height:2;letter-spacing:.15em;color:#776d63;font-family:"DM Sans",sans-serif}
+.vj-portal-intro .vjp-meta strong{color:#292722;font-weight:500}
+.vj-portal-intro .vjp-subtitle{position:absolute;z-index:7;left:50%;top:73%;transform:translateX(-50%);color:#817a71;white-space:nowrap;font-size:clamp(8px,.7vw,11px);letter-spacing:.17em;line-height:1.2;pointer-events:none}
+.vj-portal-intro .vjp-hint{position:absolute;z-index:8;bottom:48px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:13px;color:#292722;font-size:10px;letter-spacing:.17em;white-space:nowrap;pointer-events:none}
+.vj-portal-intro .vjp-hint-line{display:block;width:1px;height:44px;background:linear-gradient(to bottom,#514a41,transparent)}
+.vj-portal-intro .vjp-caption{position:absolute;z-index:9;left:clamp(22px,7vw,120px);bottom:clamp(115px,16vh,190px);width:min(520px,calc(100% - 64px));opacity:0;transform:translateY(45px);pointer-events:none;color:#252320}
+.vj-portal-intro .vjp-kicker{font-size:10px;letter-spacing:.16em;color:#60564b;margin:0 0 18px}
+.vj-portal-intro .vjp-caption h2{font-family:"Noto Serif TC",serif;font-weight:500;font-size:clamp(34px,5vw,75px);letter-spacing:-.06em;line-height:1.22;margin:0 0 22px;color:#252320}
+.vj-portal-intro .vjp-caption p:not(.vjp-kicker){font-family:"Noto Serif TC",serif;font-size:clamp(13px,1.2vw,16px);line-height:1.95;color:#4d473f;max-width:430px;margin:0}
+.vj-portal-intro .vjp-enter{display:inline-flex;align-items:center;gap:34px;font-size:11px;letter-spacing:.06em;padding:0 0 12px;margin-top:24px;border-bottom:1px solid #827769;color:#292722;text-decoration:none;pointer-events:auto}
+.vj-portal-intro .vjp-enter:hover{border-color:#292722}
+.vj-portal-intro .vjp-progress{position:absolute;z-index:10;right:clamp(25px,4vw,65px);top:50%;transform:translateY(-50%);height:190px;width:1px;background:rgba(58,54,48,.2);pointer-events:none}
+.vj-portal-intro .vjp-progress-bar{width:1px;height:0;background:#3a3833}
+.vj-portal-intro .vjp-percentage{position:absolute;z-index:10;right:clamp(20px,4vw,65px);top:calc(50% + 111px);font-size:10px;color:#6c655d;letter-spacing:.06em}
+.vj-portal-intro .vjp-scene{position:absolute;z-index:10;right:clamp(20px,4vw,65px);bottom:47px;font-size:10px;letter-spacing:.12em;color:#5b5349}
+.vj-portal-intro .vjp-skip{position:absolute;z-index:11;left:clamp(22px,4vw,70px);bottom:40px;padding:10px 0;border:0;background:none;color:#5d564d;font-size:10px;letter-spacing:.13em;text-decoration:none;cursor:pointer}
+.vj-portal-intro .vjp-skip::after{content:" ↗";font-size:14px}
+.vj-portal-intro .vjp-skip:focus-visible,.vj-portal-intro .vjp-enter:focus-visible{outline:2px solid #292722;outline-offset:6px}
+@media(max-width:760px),(max-aspect-ratio:4/5){
+ .vj-portal-intro{height:280vh;height:280svh}
+ .vj-portal-intro .vjp-meta{top:36px;left:20px;font-size:9px;max-width:155px}
+ .vj-portal-intro .vjp-subtitle{font-size:7px;letter-spacing:.1em}
+ .vj-portal-intro .vjp-hint{bottom:104px;font-size:8px}
+ .vj-portal-intro .vjp-hint-line{height:35px}
+ .vj-portal-intro .vjp-progress{right:20px;height:120px}
+ .vj-portal-intro .vjp-percentage{right:17px;top:calc(50% + 76px);font-size:8px}
+ .vj-portal-intro .vjp-scene{right:20px;bottom:80px;font-size:9px}
+ .vj-portal-intro .vjp-skip{bottom:35px;left:20px;font-size:9px;background:rgba(247,243,235,.87);padding:10px 12px;border:1px solid rgba(92,80,65,.2)}
+ .vj-portal-intro .vjp-caption{left:24px;bottom:145px;width:calc(100% - 64px)}
+ .vj-portal-intro .vjp-caption h2{font-size:clamp(31px,8vw,51px)}
+ .vj-portal-intro .vjp-caption p:not(.vjp-kicker){font-size:12px;line-height:1.85}
+}
+@media(max-width:370px){
+ .vj-portal-intro .vjp-caption{bottom:125px}
+ .vj-portal-intro .vjp-progress{right:15px}
+ .vj-portal-intro .vjp-percentage,.vj-portal-intro .vjp-scene{right:13px}
+}
+@media(prefers-reduced-motion:reduce){
+ .vj-portal-intro{height:100svh}
+ .vj-portal-intro .vjp-svg,.vj-portal-intro .vjp-hint,.vj-portal-intro .vjp-progress,.vj-portal-intro .vjp-percentage,.vj-portal-intro .vjp-scene,.vj-portal-intro .vjp-subtitle{display:none}
+ .vj-portal-intro .vjp-cover{opacity:1!important;transform:none!important}
+ .vj-portal-intro .vjp-cover-shade{opacity:.94!important}
+ .vj-portal-intro .vjp-caption{opacity:1!important;transform:none!important;pointer-events:auto!important}
+}

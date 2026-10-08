@@ -73,6 +73,15 @@ function normalizeArticleInput(input: any, partial = false) {
   return out;
 }
 
+async function resetReferencingIssues(env:Env,request:Request,user:AuthUser,articleId:string,reason:string):Promise<void>{
+  const {results}=await env.DB.prepare(`SELECT DISTINCT i.id,i.status,i.volume FROM issues i JOIN issue_articles ia ON ia.issue_id=i.id WHERE ia.article_id=? AND i.status IN ('in_review','approved','published')`).bind(articleId).all<any>();
+  for(const issue of results||[]){
+    const now=nowIso();
+    await env.DB.prepare(`UPDATE issues SET status='draft',published_at=NULL,updated_by=?,updated_at=? WHERE id=?`).bind(user.id,now,issue.id).run();
+    await audit(env,request,user,'issue.auto_reset','issue',issue.id,{article_id:articleId,reason,previous_status:issue.status,volume:issue.volume});
+  }
+}
+
 async function validateCoverMedia(env:Env,id:string|null|undefined):Promise<void>{
   if(!id) return;
   const media=await env.DB.prepare(`SELECT id,mime_type FROM media_assets WHERE id=?`).bind(id).first<any>();
@@ -153,6 +162,7 @@ export async function updateArticle(env: Env, request: Request, user: AuthUser, 
     if (String(e).includes('UNIQUE')) throw new HttpError(409, '文章網址 slug 已存在');
     throw e;
   }
+  await resetReferencingIssues(env,request,user,id,'article_updated');
   await audit(env, request, user, 'article.update', 'article', id, { fields: keys, workflow_reset_to_draft: resetReview, previous_status: current.status });
   return env.DB.prepare(`SELECT * FROM articles WHERE id=?`).bind(id).first();
 }
@@ -192,6 +202,7 @@ export async function transitionArticle(env: Env, request: Request, user: AuthUs
   }
   await env.DB.prepare(`INSERT INTO approvals (id,entity_type,entity_id,action,note,actor_id,created_at) VALUES (?,'article',?,?,?,?,?)`)
     .bind(uuid(), id, action === 'archive' ? 'unpublish' : action, note, user.id, nowIso()).run();
+  if(action==='reject'||action==='archive') await resetReferencingIssues(env,request,user,id,`article_${action}`);
   await audit(env, request, user, `article.${action}`, 'article', id, { from: current.status, to: status, note });
   return env.DB.prepare(`SELECT * FROM articles WHERE id=?`).bind(id).first();
 }

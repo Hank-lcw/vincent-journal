@@ -957,7 +957,7 @@ function fillCampaignArticleSelect(){
 function renderNewsletterDeliveryStatus(status){
   const root=$('#newsletterDeliveryStatus');if(!root)return;
   const domain=status?.email_domain||{};
-  const resend=Boolean(status?.configured?.resend);
+  const resend=Boolean(status?.resend_sending_ready);
   const segmentReady=Boolean(status?.newsletter_segment_ready);
   const verified=domain?.configured&&String(domain?.status||'').toLowerCase()==='verified';
   const rows=[

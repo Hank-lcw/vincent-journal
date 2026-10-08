@@ -17,7 +17,7 @@
 - OAuth state 短效
 - Canva 使用 PKCE
 
-## 文章狀態
+## 文章／刊物狀態
 ```
 draft → in_review → approved → published
            ↘ reject → draft
@@ -39,3 +39,10 @@ R2 素材預設 private。只有公開文章／社群需要讀取的素材才切
 - backup bucket 不公開
 
 完整災難復原時，先恢復內容與 subscriber state，再重新授權第三方 OAuth。
+
+## 額外邊界
+- 已發布文章／刊物若修改會回到 draft，避免繞過 Reviewer。
+- 已發布文章使用中的封面不能直接改回 private。
+- 訂閱確認與退訂採 GET 顯示確認頁、POST 才改變狀態，降低郵件安全掃描器誤觸。
+- 訂閱者 Email 僅 Owner／Admin 可在 Studio 查看。
+- 最後一位 active owner 無法被停用或降權。

@@ -2,6 +2,7 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const e=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let me=null, articlesCache=[], issuesCache=[], mediaCache=[], campaignsCache=[], socialDraftsCache=[], canvaDataset=null, canvaAssetCache={}, editingArticleId=null, editingIssueId=null, editMediaId=null, editingCampaignId=null, editingSocialId=null;
+let socialMediaOrder=[], socialPreviewIndex=0, socialDragId=null;
 const roleRank={editor:10,reviewer:20,admin:30,owner:40};
 const canReview=()=>roleRank[me?.role]>=20, canAdmin=()=>roleRank[me?.role]>=30;
 const categoryLabel=s=>({aesthetics:'美學觀點','healthy-aging':'健康老化',longevity:'長壽科學'})[s]||s;
@@ -374,7 +375,7 @@ async function prepareMediaForSocial(id,platform){
   resetSocialEditor();
   $('#socialPlatform').value=platform;
   fillSocialSources();
-  [...$('#socialMedia').options].forEach(o=>o.selected=o.value===chosen.id);
+  socialMediaOrder=[chosen.id];socialPreviewIndex=0;syncSocialMediaSelect();renderSocialCarousel();
   const label={instagram:'Instagram',facebook:'Facebook',threads:'Threads',xiaohongshu:'小紅書'}[platform]||platform;
   const switched=chosen.id!==id;
   $('#socialAiBrief').textContent=`已從媒體工作室帶入 ${label} 素材：${chosen.filename}${switched?'（已自動選擇同一家族較適合的平台比例版本）':''}。下一步可選來源文章，再用 AI 依平台產生文案。`;
@@ -975,8 +976,96 @@ async function socialAction(id,action){
 }
 const socialPlatformLabel=p=>({instagram:'Instagram',facebook:'Facebook',threads:'Threads',xiaohongshu:'小紅書'})[p]||p;
 function selectedSocialMedia(){
-  const ids=[...($('#socialMedia')?.selectedOptions||[])].map(o=>o.value);
-  return ids.map(id=>mediaCache.find(m=>m.id===id)).filter(Boolean);
+  return socialMediaOrder.map(id=>mediaCache.find(m=>m.id===id)).filter(Boolean);
+}
+function syncSocialMediaSelect(){
+  const select=$('#socialMedia');if(!select)return;
+  const ids=new Set(socialMediaOrder);
+  [...select.options].forEach(o=>o.selected=ids.has(o.value));
+}
+function syncSocialMediaOrderFromSelect(){
+  const select=$('#socialMedia');if(!select)return;
+  const selected=[...select.selectedOptions].map(o=>o.value);
+  const chosen=new Set(selected);
+  let next=socialMediaOrder.filter(id=>chosen.has(id));
+  for(const id of selected)if(!next.includes(id))next.push(id);
+  if(next.length>10){
+    next=next.slice(0,10);
+    toast('單篇社群貼文最多使用 10 張圖片');
+  }
+  socialMediaOrder=next;
+  socialPreviewIndex=Math.min(socialPreviewIndex,Math.max(0,next.length-1));
+  syncSocialMediaSelect();
+  renderSocialCarousel();
+  renderSocialPreview();
+}
+function moveSocialMedia(id,targetIndex){
+  const from=socialMediaOrder.indexOf(id);if(from<0)return;
+  const next=[...socialMediaOrder];next.splice(from,1);
+  const idx=Math.max(0,Math.min(targetIndex,next.length));
+  next.splice(idx,0,id);
+  socialMediaOrder=next;
+  socialPreviewIndex=Math.min(socialPreviewIndex,next.length-1);
+  syncSocialMediaSelect();renderSocialCarousel();renderSocialPreview();
+}
+function removeSocialMedia(id){
+  socialMediaOrder=socialMediaOrder.filter(x=>x!==id);
+  socialPreviewIndex=Math.min(socialPreviewIndex,Math.max(0,socialMediaOrder.length-1));
+  syncSocialMediaSelect();renderSocialCarousel();renderSocialPreview();
+}
+async function editSocialMediaCrop(id){
+  show('media');
+  await loadMedia(true);
+  await openMediaTools(id,false);
+  toast('可在此建立新的裁切衍生版本；完成後回到社群工作室重新選取新版本');
+}
+function renderSocialCarousel(){
+  const root=$('#socialCarousel');if(!root)return;
+  const items=selectedSocialMedia();
+  if(!items.length){
+    root.innerHTML='<p class="social-carousel-empty">尚未加入圖片。從上方素材欄選擇，或由媒體工作室直接送入社群草稿。</p>';
+    return;
+  }
+  root.innerHTML=items.map((m,i)=>`<article class="social-carousel-item" draggable="true" data-carousel-id="${e(m.id)}">
+    <div class="social-carousel-drag" title="拖曳排序" aria-hidden="true">⋮⋮</div>
+    <div class="social-carousel-thumb"><img src="${e(mediaUrl(m))}" alt="${e(m.alt_text||'')}"><span>${i+1}</span></div>
+    <div class="social-carousel-copy">
+      <div class="social-carousel-title"><strong>${e(m.filename)}</strong>${i===0?'<span class="media-chip media-chip-live">封面</span>':''}</div>
+      <div class="meta">${e(mediaSourceLabel(m))}${mediaPreset(m)?' · '+e(mediaPreset(m)):''}</div>
+    </div>
+    <div class="social-carousel-actions">
+      ${i!==0?`<button class="btn" type="button" data-carousel-cover="${e(m.id)}">設封面</button>`:''}
+      <button class="btn icon-btn" type="button" data-carousel-left="${e(m.id)}" ${i===0?'disabled':''} aria-label="向前移">←</button>
+      <button class="btn icon-btn" type="button" data-carousel-right="${e(m.id)}" ${i===items.length-1?'disabled':''} aria-label="向後移">→</button>
+      <button class="btn" type="button" data-carousel-crop="${e(m.id)}">裁切版本</button>
+      <button class="btn danger" type="button" data-carousel-remove="${e(m.id)}">移除</button>
+    </div>
+  </article>`).join('');
+
+  root.querySelectorAll('[data-carousel-cover]').forEach(b=>b.onclick=()=>moveSocialMedia(b.dataset.carouselCover,0));
+  root.querySelectorAll('[data-carousel-left]').forEach(b=>b.onclick=()=>{
+    const i=socialMediaOrder.indexOf(b.dataset.carouselLeft);if(i>0)moveSocialMedia(b.dataset.carouselLeft,i-1);
+  });
+  root.querySelectorAll('[data-carousel-right]').forEach(b=>b.onclick=()=>{
+    const i=socialMediaOrder.indexOf(b.dataset.carouselRight);if(i>=0&&i<socialMediaOrder.length-1)moveSocialMedia(b.dataset.carouselRight,i+1);
+  });
+  root.querySelectorAll('[data-carousel-remove]').forEach(b=>b.onclick=()=>removeSocialMedia(b.dataset.carouselRemove));
+  root.querySelectorAll('[data-carousel-crop]').forEach(b=>b.onclick=()=>editSocialMediaCrop(b.dataset.carouselCrop));
+
+  root.querySelectorAll('[data-carousel-id]').forEach(card=>{
+    card.ondragstart=ev=>{socialDragId=card.dataset.carouselId;card.classList.add('is-dragging');ev.dataTransfer.effectAllowed='move';ev.dataTransfer.setData('text/plain',socialDragId||'')};
+    card.ondragend=()=>{socialDragId=null;card.classList.remove('is-dragging');root.querySelectorAll('.is-drag-over').forEach(x=>x.classList.remove('is-drag-over'))};
+    card.ondragover=ev=>{ev.preventDefault();if(socialDragId&&socialDragId!==card.dataset.carouselId)card.classList.add('is-drag-over')};
+    card.ondragleave=()=>card.classList.remove('is-drag-over');
+    card.ondrop=ev=>{
+      ev.preventDefault();card.classList.remove('is-drag-over');
+      const dragged=socialDragId||ev.dataTransfer.getData('text/plain');
+      const target=card.dataset.carouselId;
+      if(!dragged||dragged===target)return;
+      const targetIndex=socialMediaOrder.indexOf(target);
+      moveSocialMedia(dragged,targetIndex);
+    };
+  });
 }
 function previewText(text,limit){
   const clean=String(text||'').trim();
@@ -986,9 +1075,15 @@ function previewText(text,limit){
 }
 function previewMediaMarkup(items,platform){
   if(!items.length)return '<div class="social-preview-empty-media"><span>尚未選擇圖片</span></div>';
-  const first=items[0],count=items.length;
+  socialPreviewIndex=Math.min(socialPreviewIndex,items.length-1);
+  const item=items[socialPreviewIndex],count=items.length;
   const cls=platform==='xiaohongshu'?'is-xhs':platform==='threads'?'is-threads':'';
-  return `<div class="social-preview-media ${cls}"><img src="${e(mediaUrl(first))}" alt="${e(first.alt_text||'')}">${count>1?`<span class="social-preview-count">1 / ${count}</span>`:''}</div>`;
+  return `<div class="social-preview-media ${cls}">
+    <img src="${e(mediaUrl(item))}" alt="${e(item.alt_text||'')}">
+    ${count>1?`<span class="social-preview-count">${socialPreviewIndex+1} / ${count}</span>
+      <button type="button" class="social-preview-nav prev" data-social-preview-prev aria-label="上一張">‹</button>
+      <button type="button" class="social-preview-nav next" data-social-preview-next aria-label="下一張">›</button>`:''}
+  </div>`;
 }
 function socialPreviewChecks(platform,items,title,copy){
   const checks=[];
@@ -1049,6 +1144,8 @@ function renderSocialPreview(){
     </div>`;
   }
   $('#socialPreviewChecks').innerHTML=socialPreviewChecks(platform,items,title,copy);
+  root.querySelectorAll('[data-social-preview-prev]').forEach(b=>b.onclick=()=>{socialPreviewIndex=(socialPreviewIndex-1+items.length)%items.length;renderSocialPreview()});
+  root.querySelectorAll('[data-social-preview-next]').forEach(b=>b.onclick=()=>{socialPreviewIndex=(socialPreviewIndex+1)%items.length;renderSocialPreview()});
 }
 function resetSocialEditor(){
   editingSocialId=null;
@@ -1059,10 +1156,12 @@ function resetSocialEditor(){
   $('#socialCopy').value='';
   $('#socialSchedule').value='';
   $('#socialAiBrief').textContent='';
+  socialMediaOrder=[];socialPreviewIndex=0;
   [...$('#socialMedia').options].forEach(o=>o.selected=false);
   $('#saveSocialDraftBtn').textContent='儲存草稿';
   $('#submitSocialDraftBtn').textContent='儲存並送審';
   $('#cancelSocialEditBtn').hidden=true;
+  renderSocialCarousel();
   renderSocialPreview();
 }
 function openSocialEditor(id){
@@ -1074,8 +1173,10 @@ function openSocialEditor(id){
   $('#socialTitle').value=d.title||'';
   $('#socialCopy').value=d.copy||'';
   $('#socialSchedule').value=localDateTimeValue(d.scheduled_at);
-  const ids=new Set(Array.isArray(d.media_ids)?d.media_ids:[]);
-  [...$('#socialMedia').options].forEach(o=>o.selected=ids.has(o.value));
+  socialMediaOrder=(Array.isArray(d.media_ids)?d.media_ids:[]).filter(id=>mediaCache.some(m=>m.id===id)).slice(0,10);
+  socialPreviewIndex=0;
+  syncSocialMediaSelect();
+  renderSocialCarousel();
   $('#socialEditorTitle').textContent='編輯社群草稿';
   $('#saveSocialDraftBtn').textContent='儲存修改';
   $('#submitSocialDraftBtn').textContent='儲存並送審';
@@ -1091,11 +1192,12 @@ function renderSocialDrafts(list){
 }
 function fillSocialSources(){
   const selectedArticle=$('#socialArticle').value;
-  const selectedMedia=new Set([...$('#socialMedia').selectedOptions].map(o=>o.value));
   $('#socialArticle').innerHTML='<option value="">不綁定文章</option>'+articlesCache.map(a=>`<option value="${e(a.id)}">${e(a.title)}</option>`).join('');
   if([...$('#socialArticle').options].some(o=>o.value===selectedArticle)) $('#socialArticle').value=selectedArticle;
+  socialMediaOrder=socialMediaOrder.filter(id=>mediaCache.some(m=>m.id===id)).slice(0,10);
   $('#socialMedia').innerHTML=mediaCache.map(m=>`<option value="${e(m.id)}">${e(m.filename)} · ${m.visibility==='public'?'公開':'私人'}</option>`).join('');
-  [...$('#socialMedia').options].forEach(o=>o.selected=selectedMedia.has(o.value));
+  syncSocialMediaSelect();
+  renderSocialCarousel();
   renderSocialPreview();
 }
 async function generateSocialCopy(){
@@ -1115,7 +1217,7 @@ async function generateSocialCopy(){
 }
 async function saveSocial(submit){
   try{
-    const mediaIds=[...$('#socialMedia').selectedOptions].map(o=>o.value);
+    const mediaIds=[...socialMediaOrder];
     const scheduleRaw=$('#socialSchedule').value;
     const scheduledAt=scheduleRaw?new Date(scheduleRaw).toISOString():null;
     const payload={platform:$('#socialPlatform').value,article_id:$('#socialArticle').value||null,title:$('#socialTitle').value,copy:$('#socialCopy').value,media_ids:mediaIds,scheduled_at:scheduledAt};
@@ -1138,19 +1240,29 @@ async function loadSocial(){
   }catch(err){$('#socialStatus').innerHTML=`<p>${e(err.message)}</p>`}
 }
 $('#socialPlatform').onchange=()=>{
-  const ids=[...$('#socialMedia').selectedOptions].map(o=>o.value);
-  if(ids.length===1){
-    const preferred=preferredSocialMedia(ids[0],$('#socialPlatform').value);
-    if(preferred&&preferred.id!==ids[0]){
-      [...$('#socialMedia').options].forEach(o=>o.selected=o.value===preferred.id);
-      $('#socialAiBrief').textContent='已依新平台自動切換為同一家族較適合的圖片比例：'+preferred.filename;
-    }
+  const platform=$('#socialPlatform').value;
+  const mapped=[];
+  let changed=false;
+  for(const id of socialMediaOrder){
+    const preferred=preferredSocialMedia(id,platform);
+    const nextId=preferred?.id||id;
+    if(nextId!==id)changed=true;
+    if(!mapped.includes(nextId))mapped.push(nextId);
+  }
+  if(changed){
+    socialMediaOrder=mapped.slice(0,10);
+    socialPreviewIndex=0;
+    syncSocialMediaSelect();renderSocialCarousel();
+    $('#socialAiBrief').textContent='已依新平台自動切換輪播內可用的較適合比例版本。';
   }
   renderSocialPreview();
 };
 $('#socialTitle').oninput=renderSocialPreview;
 $('#socialCopy').oninput=renderSocialPreview;
-$('#socialMedia').onchange=renderSocialPreview;
+$('#socialMedia').onchange=syncSocialMediaOrderFromSelect;
+$('#clearSocialMediaBtn').onclick=()=>{
+  socialMediaOrder=[];socialPreviewIndex=0;syncSocialMediaSelect();renderSocialCarousel();renderSocialPreview();
+};
 $('#generateSocialCopyBtn').onclick=generateSocialCopy;
 $('#saveSocialDraftBtn').onclick=()=>saveSocial(false);
 $('#submitSocialDraftBtn').onclick=()=>saveSocial(true);

@@ -613,6 +613,57 @@ $('#deriveAllBtn').onclick=async()=>{
 };
 
 function compareOptionLabel(m){return `V${mediaFamilyIndex(m)} · ${mediaSourceLabel(m)} · ${m.filename}`}
+function compareCropMeta(m){
+  const crop=m?.metadata?.crop;
+  if(!m?.metadata?.derivative||!crop?.source_px||!crop?.output)return null;
+  const s=crop.source_px,o=crop.output;
+  if(![s.x,s.y,s.w,s.h,o.w,o.h].every(Number.isFinite))return null;
+  if(s.w<=0||s.h<=0||o.w<=0||o.h<=0)return null;
+  return crop;
+}
+function loadCompareImage(src){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>resolve(img);
+    img.onerror=()=>reject(new Error('比較圖片載入失敗'));
+    img.src=src;
+  });
+}
+async function sourceCropPreview(source,derivative){
+  const crop=compareCropMeta(derivative);
+  if(!crop)return null;
+  const img=await loadCompareImage(mediaUrl(source));
+  const o=crop.output,s=crop.source_px;
+  const maxEdge=1600;
+  const scale=Math.min(1,maxEdge/Math.max(o.w,o.h));
+  const w=Math.max(1,Math.round(o.w*scale)),h=Math.max(1,Math.round(o.h*scale));
+  const canvas=document.createElement('canvas');
+  canvas.width=w;canvas.height=h;
+  const ctx=canvas.getContext('2d',{alpha:false});
+  ctx.fillStyle='#eeeae1';ctx.fillRect(0,0,w,h);
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  ctx.drawImage(img,s.x,s.y,s.w,s.h,0,0,w,h);
+  return {url:canvas.toDataURL('image/jpeg',.94),ratio:o.w/o.h,label:`依 ${mediaSourceLabel(derivative)} 裁切範圍對齊`};
+}
+function setCompareOverlayMode(ratio,note){
+  const stage=$('#compareStage');
+  stage.classList.remove('is-side-by-side');
+  stage.style.aspectRatio=String(ratio||16/9);
+  $('#compareRightClip').style.clipPath='';
+  $('#compareDivider').hidden=false;
+  $('.compare-range').hidden=false;
+  $('#compareModeNote').textContent=note||'';
+  updateCompareSlider();
+}
+function setCompareSideBySideMode(note){
+  const stage=$('#compareStage');
+  stage.classList.add('is-side-by-side');
+  stage.style.aspectRatio='';
+  $('#compareRightClip').style.clipPath='none';
+  $('#compareDivider').hidden=true;
+  $('.compare-range').hidden=true;
+  $('#compareModeNote').textContent=note||'';
+}
 function populateCompare(id){
   const fam=mediaFamily(id);
   const left=$('#compareLeft'),right=$('#compareRight');
@@ -623,19 +674,58 @@ function populateCompare(id){
   right.value=(id!==root?id:(fam[fam.length-1]?.id||root));
   const empty=fam.length<2;
   $('#compareEmpty').hidden=!empty;
+  $('#compareModeNote').hidden=empty;
   $('#compareStage').hidden=empty;
   $('.compare-range').hidden=empty;
   left.disabled=empty;right.disabled=empty;
   if(!empty)renderCompare();
 }
-function renderCompare(){
+async function renderCompare(){
   const a=mediaCache.find(x=>x.id===$('#compareLeft').value),b=mediaCache.find(x=>x.id===$('#compareRight').value);
   if(!a||!b)return;
-  $('#compareLeftImg').src=mediaUrl(a);
-  $('#compareRightImg').src=mediaUrl(b);
-  updateCompareSlider();
+  const leftImg=$('#compareLeftImg'),rightImg=$('#compareRightImg');
+  $('#compareModeNote').textContent='正在對齊版本…';
+
+  try{
+    // Direct source -> crop derivative: reconstruct the exact source crop before overlaying.
+    if(b.parent_media_id===a.id && compareCropMeta(b)){
+      const aligned=await sourceCropPreview(a,b);
+      leftImg.src=aligned.url;
+      rightImg.src=mediaUrl(b);
+      setCompareOverlayMode(aligned.ratio,`已自動對齊：V${mediaFamilyIndex(a)} 原圖依 V${mediaFamilyIndex(b)} 的裁切範圍重建後比較。`);
+      return;
+    }
+    if(a.parent_media_id===b.id && compareCropMeta(a)){
+      const aligned=await sourceCropPreview(b,a);
+      leftImg.src=mediaUrl(a);
+      rightImg.src=aligned.url;
+      setCompareOverlayMode(aligned.ratio,`已自動對齊：V${mediaFamilyIndex(b)} 原圖依 V${mediaFamilyIndex(a)} 的裁切範圍重建後比較。`);
+      return;
+    }
+
+    const [ai,bi]=await Promise.all([loadCompareImage(mediaUrl(a)),loadCompareImage(mediaUrl(b))]);
+    const ar=ai.naturalWidth/ai.naturalHeight,br=bi.naturalWidth/bi.naturalHeight;
+    leftImg.src=mediaUrl(a);
+    rightImg.src=mediaUrl(b);
+
+    // Overlay only when the frames are effectively the same shape.
+    if(Math.abs(ar-br)/Math.max(ar,br)<0.02){
+      setCompareOverlayMode((ar+br)/2,'兩個版本比例一致，可直接使用滑桿疊圖比較。');
+      return;
+    }
+
+    // Different, unrelated aspect ratios should never be overlaid: it is visually misleading.
+    setCompareSideBySideMode('兩個版本的比例不同，且不是直接的裁切母子版本，因此改用並排比較，避免錯誤縮放或假性位移。');
+  }catch(err){
+    $('#compareModeNote').textContent='版本比較載入失敗：'+err.message;
+    setCompareSideBySideMode('無法自動對齊，暫以並排方式顯示。');
+    leftImg.src=mediaUrl(a);
+    rightImg.src=mediaUrl(b);
+  }
 }
 function updateCompareSlider(){
+  const stage=$('#compareStage');
+  if(stage?.classList.contains('is-side-by-side'))return;
   const v=Number($('#compareSlider').value||50);
   $('#compareRightClip').style.clipPath=`inset(0 0 0 ${v}%)`;
   $('#compareDivider').style.left=v+'%';

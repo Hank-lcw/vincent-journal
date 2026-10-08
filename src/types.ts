@@ -35,6 +35,7 @@ export interface Env {
   XHS_CLIENT_ID?: string;
   XHS_CLIENT_SECRET?: string;
   TURNSTILE_SECRET_KEY?: string;
+  TURNSTILE_SITE_KEY?: string;
 }
 
 export interface AuthUser {

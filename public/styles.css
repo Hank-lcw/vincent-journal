@@ -284,3 +284,10 @@
   .social-story-top{grid-template-columns:1fr}
   .social-story-top span{display:none}
 }
+
+
+/* Newsletter delivery readiness */
+.newsletter-delivery-status{margin:18px 0 20px;padding:14px 16px;background:#f5f2ec;border:1px solid var(--line);border-radius:7px}
+.newsletter-delivery-status>.meta{margin-bottom:4px}
+.newsletter-delivery-status .status-row:last-of-type{border-bottom:0}
+.newsletter-delivery-status .form-note{margin:10px 0 0;line-height:1.7}

@@ -1,7 +1,7 @@
 (()=>{
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const e=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-let me=null, articlesCache=[], mediaCache=[], campaignsCache=[], editingArticleId=null, editMediaId=null, editingCampaignId=null;
+let me=null, articlesCache=[], mediaCache=[], campaignsCache=[], socialDraftsCache=[], editingArticleId=null, editMediaId=null, editingCampaignId=null, editingSocialId=null;
 const roleRank={editor:10,reviewer:20,admin:30,owner:40};
 const canReview=()=>roleRank[me?.role]>=20, canAdmin=()=>roleRank[me?.role]>=30;
 const categoryLabel=s=>({aesthetics:'美學觀點','healthy-aging':'健康老化',longevity:'長壽科學'})[s]||s;
@@ -259,41 +259,107 @@ function renderIntegrationStatus(integrations){
   }).join('');
   $$('[data-connect]').forEach(b=>b.onclick=()=>connectIntegration(b.dataset.connect));
 }
+function localDateTimeValue(iso){
+  if(!iso)return '';
+  const d=new Date(iso); if(Number.isNaN(d.getTime()))return '';
+  const pad=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 function socialActions(d){
   const out=[];
-  if(d.status==='draft')out.push(`<button class="btn" data-social-action="submit" data-id="${e(d.id)}">送審</button>`);
-  if(canReview()&&d.status==='in_review')out.push(`<button class="btn primary" data-social-action="approve" data-id="${e(d.id)}">核准</button>`);
-  if(canReview()&&d.status==='approved')out.push(`<button class="btn primary" data-social-action="publish" data-id="${e(d.id)}">發布</button>`);
+  if(['draft','in_review'].includes(d.status)) out.push(`<button class="btn" data-social-edit="${e(d.id)}">編輯</button>`);
+  if(d.status==='draft') out.push(`<button class="btn" data-social-action="submit" data-id="${e(d.id)}">送審</button>`);
+  if(canReview()&&d.status==='in_review'){
+    out.push(`<button class="btn primary" data-social-action="approve" data-id="${e(d.id)}">核准</button>`);
+    out.push(`<button class="btn" data-social-action="reject" data-id="${e(d.id)}">退回草稿</button>`);
+  }
+  if(canReview()&&d.status==='approved'){
+    out.push(`<button class="btn primary" data-social-action="publish" data-id="${e(d.id)}">${d.scheduled_at?'排程發布':'發布'}</button>`);
+    out.push(`<button class="btn" data-social-action="reject" data-id="${e(d.id)}">退回草稿</button>`);
+  }
   return out.join('');
 }
-async function socialAction(id,action){try{await api('/studio/api/admin/social/'+id+'/'+action,{method:'POST',body:'{}'});toast(({submit:'已送審',approve:'已核准',publish:'發布流程已啟動'})[action]||'已更新');loadSocial()}catch(err){toast(err.message)}}
+async function socialAction(id,action){
+  try{
+    await api('/studio/api/admin/social/'+id+'/'+action,{method:'POST',body:'{}'});
+    toast(({submit:'已送審',approve:'已核准',reject:'已退回草稿',publish:'發布流程已啟動'})[action]||'已更新');
+    await loadSocial();
+  }catch(err){toast(err.message)}
+}
+function resetSocialEditor(){
+  editingSocialId=null;
+  $('#socialEditorTitle').textContent='建立社群草稿';
+  $('#socialPlatform').value='instagram';
+  $('#socialArticle').value='';
+  $('#socialTitle').value='';
+  $('#socialCopy').value='';
+  $('#socialSchedule').value='';
+  $('#socialAiBrief').textContent='';
+  [...$('#socialMedia').options].forEach(o=>o.selected=false);
+  $('#saveSocialDraftBtn').textContent='儲存草稿';
+  $('#submitSocialDraftBtn').textContent='儲存並送審';
+  $('#cancelSocialEditBtn').hidden=true;
+}
+function openSocialEditor(id){
+  const d=socialDraftsCache.find(x=>x.id===id); if(!d)return toast('找不到社群草稿');
+  if(!['draft','in_review'].includes(d.status))return toast('這份社群內容目前不可編輯');
+  editingSocialId=id;
+  $('#socialPlatform').value=d.platform||'instagram';
+  $('#socialArticle').value=d.article_id||'';
+  $('#socialTitle').value=d.title||'';
+  $('#socialCopy').value=d.copy||'';
+  $('#socialSchedule').value=localDateTimeValue(d.scheduled_at);
+  const ids=new Set(Array.isArray(d.media_ids)?d.media_ids:[]);
+  [...$('#socialMedia').options].forEach(o=>o.selected=ids.has(o.value));
+  $('#socialEditorTitle').textContent='編輯社群草稿';
+  $('#saveSocialDraftBtn').textContent='儲存修改';
+  $('#submitSocialDraftBtn').textContent='儲存並送審';
+  $('#cancelSocialEditBtn').hidden=false;
+  $('#socialEditorPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
 function renderSocialDrafts(list){
-  $('#socialDrafts').innerHTML=list.length?list.map(d=>`<div class="social-row"><div><strong>${e(d.title||d.article_title||d.platform)}</strong><div class="meta">${e(d.platform)} · ${e(statusLabel(d.status))}</div><div>${e(String(d.copy||'').slice(0,160))}</div></div><div class="studio-actions">${socialActions(d)}</div></div>`).join(''):'<p class="empty-state">目前沒有社群草稿。</p>';
+  socialDraftsCache=list;
+  $('#socialDrafts').innerHTML=list.length?list.map(d=>`<div class="social-row"><div><strong>${e(d.title||d.article_title||d.platform)}</strong><div class="meta">${e(d.platform)} · ${e(statusLabel(d.status))}${d.scheduled_at?' · '+e(String(d.scheduled_at).slice(0,16)):''}</div><div>${e(String(d.copy||'').slice(0,160))}</div></div><div class="studio-actions">${socialActions(d)}</div></div>`).join(''):'<p class="empty-state">目前沒有社群草稿。</p>';
   $$('[data-social-action]').forEach(b=>b.onclick=()=>socialAction(b.dataset.id,b.dataset.socialAction));
+  $$('[data-social-edit]').forEach(b=>b.onclick=()=>openSocialEditor(b.dataset.socialEdit));
 }
 function fillSocialSources(){
+  const selectedArticle=$('#socialArticle').value;
+  const selectedMedia=new Set([...$('#socialMedia').selectedOptions].map(o=>o.value));
   $('#socialArticle').innerHTML='<option value="">不綁定文章</option>'+articlesCache.map(a=>`<option value="${e(a.id)}">${e(a.title)}</option>`).join('');
+  if([...$('#socialArticle').options].some(o=>o.value===selectedArticle)) $('#socialArticle').value=selectedArticle;
   $('#socialMedia').innerHTML=mediaCache.map(m=>`<option value="${e(m.id)}">${e(m.filename)} · ${m.visibility==='public'?'公開':'私人'}</option>`).join('');
+  [...$('#socialMedia').options].forEach(o=>o.selected=selectedMedia.has(o.value));
 }
 async function generateSocialCopy(){
   const articleId=$('#socialArticle').value;
-  if(!articleId)return toast('請先選擇來源文章');
-  const btn=$('#generateSocialCopyBtn');const old=btn.textContent;btn.disabled=true;btn.textContent='AI 產生中…';
+  const title=$('#socialTitle').value.trim(), body=$('#socialCopy').value.trim();
+  if(!articleId&&!title&&!body)return toast('請先選擇來源文章，或先輸入要改寫的內容');
+  const btn=$('#generateSocialCopyBtn'),old=btn.textContent;btn.disabled=true;btn.textContent='AI 產生中…';
   try{
-    const d=await api('/studio/api/admin/social/generate',{method:'POST',body:JSON.stringify({platform:$('#socialPlatform').value,article_id:articleId})});
-    $('#socialTitle').value=d.title||'';
-    $('#socialCopy').value=d.copy||'';
+    const d=await api('/studio/api/admin/social/generate',{method:'POST',body:JSON.stringify({platform:$('#socialPlatform').value,article_id:articleId||null,title,body})});
+    $('#socialTitle').value=d.title||title;
+    $('#socialCopy').value=d.copy||body;
     $('#socialAiBrief').textContent=d.visual_brief?('視覺建議：'+d.visual_brief):'';
     toast('已依平台產生文案，發布前請人工確認');
   }catch(err){toast(err.message)}
   finally{btn.disabled=false;btn.textContent=old}
 }
-async function createSocial(submit){
+async function saveSocial(submit){
   try{
     const mediaIds=[...$('#socialMedia').selectedOptions].map(o=>o.value);
-    await api('/studio/api/admin/social',{method:'POST',body:JSON.stringify({platform:$('#socialPlatform').value,article_id:$('#socialArticle').value||null,title:$('#socialTitle').value,copy:$('#socialCopy').value,media_ids:mediaIds,submit_for_review:submit})});
-    toast(submit?'社群草稿已建立並送審':'社群草稿已建立');
-    $('#socialTitle').value='';$('#socialCopy').value='';[...$('#socialMedia').options].forEach(o=>o.selected=false);loadSocial();
+    const scheduleRaw=$('#socialSchedule').value;
+    const scheduledAt=scheduleRaw?new Date(scheduleRaw).toISOString():null;
+    const payload={platform:$('#socialPlatform').value,article_id:$('#socialArticle').value||null,title:$('#socialTitle').value,copy:$('#socialCopy').value,media_ids:mediaIds,scheduled_at:scheduledAt};
+    if(editingSocialId){
+      await api('/studio/api/admin/social/'+editingSocialId,{method:'PATCH',body:JSON.stringify(payload)});
+      if(submit) await api('/studio/api/admin/social/'+editingSocialId+'/submit',{method:'POST',body:'{}'});
+      toast(submit?'社群草稿已更新並送審':'社群草稿已更新');
+    }else{
+      await api('/studio/api/admin/social',{method:'POST',body:JSON.stringify({...payload,submit_for_review:submit})});
+      toast(submit?'社群草稿已建立並送審':'社群草稿已建立');
+    }
+    resetSocialEditor(); await loadSocial();
   }catch(err){toast(err.message)}
 }
 async function loadSocial(){
@@ -304,8 +370,9 @@ async function loadSocial(){
   }catch(err){$('#socialStatus').innerHTML=`<p>${e(err.message)}</p>`}
 }
 $('#generateSocialCopyBtn').onclick=generateSocialCopy;
-$('#saveSocialDraftBtn').onclick=()=>createSocial(false);
-$('#submitSocialDraftBtn').onclick=()=>createSocial(true);
+$('#saveSocialDraftBtn').onclick=()=>saveSocial(false);
+$('#submitSocialDraftBtn').onclick=()=>saveSocial(true);
+$('#cancelSocialEditBtn').onclick=resetSocialEditor;
 
 async function loadSystem(){
   try{

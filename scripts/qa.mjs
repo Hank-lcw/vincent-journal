@@ -20,6 +20,8 @@ if(wr?.assets?.run_worker_first!==true) fail('Worker must run before static asse
 const index=fs.readFileSync('src/index.ts','utf8');
 if(!index.includes("p==='/studio'")) fail('canonical /studio route missing');
 if(!index.includes("seg[0]==='studio' && seg[1]==='media'")) fail('protected Studio media proxy missing');
+if(!index.includes("p==='/api/public/issues/current'")) fail('public current-issue API missing');
+if(!index.includes("p==='/api/newsletter/verify'")||!index.includes("method==='POST' && p==='/api/newsletter/verify'")) fail('newsletter POST confirmation route missing');
 
 const studio=fs.readFileSync('public/studio.js','utf8');
 if(studio.includes('/studio.html')) fail('stale /studio.html reference in Studio JS');
@@ -31,6 +33,8 @@ const migration=fs.readFileSync('migrations/0001_initial.sql','utf8');
 const tables=[...migration.matchAll(/CREATE TABLE IF NOT EXISTS\s+([A-Za-z0-9_]+)/g)].map(x=>x[1]);
 if(tables.length<17) fail(`unexpected baseline table count: ${tables.length}`);
 const issue=fs.readFileSync('public/issue.html','utf8');if(!issue.includes('id="issueGrid"')) fail('Issue page article grid hook missing');
+const studioHtml=fs.readFileSync('public/studio.html','utf8');if(!studioHtml.includes('data-view="issues"')) fail('Studio issue management view missing');
+const publicApp=fs.readFileSync('public/app.js','utf8');if(!publicApp.includes('/api/public/config')||!publicApp.includes('turnstile_token')) fail('Turnstile newsletter wiring missing');
 
 for(const htmlFile of ['public/index.html','public/discover.html','public/article.html','public/issue.html','public/studio.html']){
   const html=fs.readFileSync(htmlFile,'utf8');

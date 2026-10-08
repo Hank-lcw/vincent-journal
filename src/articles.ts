@@ -73,6 +73,38 @@ function normalizeArticleInput(input: any, partial = false) {
   return out;
 }
 
+const legacyDemoArticles=[
+  {slug:'younger-face',title:'我們為什麼追求一張更年輕的臉？',subtitle:'年輕，不只是年齡的數字，而是一種綜合的視覺印象。',excerpt:'真正值得討論的，也許不是怎麼把每一條紋路消掉，而是哪些改變能讓一個人看起來更有精神、仍然像自己。',body:'<p>我們談抗老時，很容易從皺紋開始。但一張臉給人的年齡感，從來不是由單一結構決定。</p><h2>年齡感是一種整體判斷</h2><p>輪廓、皮膚質地、脂肪分布、骨架與表情共同構成我們對一個人的第一印象。真正自然的改變，往往不是把所有歲月痕跡抹去，而是保留那些讓人看起來仍然有生命力的部分。</p><blockquote>好的美學介入，不應該讓你看起來像另一個人，而是讓原本的你變得更清楚。</blockquote><p>這也是 VINCENT JOURNAL 想持續討論的事情：不是追逐單一答案，而是練習做出更好的判斷。</p>',category:'aesthetics',read:9,featured:1,published_at:'2026-10-10T00:00:00Z'},
+  {slug:'where-aging-starts',title:'一張臉的老化，究竟從哪裡開始？',subtitle:'',excerpt:'皮膚只是最外層。真正的老化同時發生在骨骼、脂肪、韌帶與肌肉。',body:'<p>皮膚只是最外層。真正的老化同時發生在骨骼、脂肪、韌帶與肌肉。</p>',category:'healthy-aging',read:10,featured:0,published_at:'2026-10-08T00:00:00Z'},
+  {slug:'muscle-aging',title:'肌肉量，可能是比外貌更值得關心的老化指標。',subtitle:'',excerpt:'健康老化不只是看起來年輕，而是保有力量、活動能力與獨立生活的餘裕。',body:'<p>健康老化不只是看起來年輕，而是保有力量、活動能力與獨立生活的餘裕。</p>',category:'longevity',read:8,featured:0,published_at:'2026-10-05T00:00:00Z'},
+  {slug:'jawline',title:'好看的下顎線，一定要非常清晰嗎？',subtitle:'',excerpt:'輪廓的美感不是越銳利越好，而是比例、轉折與整體氣質的平衡。',body:'<p>輪廓的美感不是越銳利越好，而是比例、轉折與整體氣質的平衡。</p>',category:'aesthetics',read:6,featured:0,published_at:'2026-09-29T00:00:00Z'},
+  {slug:'collagen',title:'膠原蛋白新生，醫學研究究竟如何測量？',subtitle:'',excerpt:'從組織切片到影像工具，理解研究方法，才能分辨療效宣稱與真正證據。',body:'<p>從組織切片到影像工具，理解研究方法，才能分辨療效宣稱與真正證據。</p>',category:'healthy-aging',read:11,featured:0,published_at:'2026-09-22T00:00:00Z'},
+  {slug:'sleep-skin',title:'睡眠、壓力與皮膚老化的真實關係。',subtitle:'',excerpt:'生活方式很少有魔法效果，但長時間累積的差異，可能比我們想像得更重要。',body:'<p>生活方式很少有魔法效果，但長時間累積的差異，可能比我們想像得更重要。</p>',category:'longevity',read:7,featured:0,published_at:'2026-09-17T00:00:00Z'}
+];
+
+async function ensureLegacyDemoArticles(env:Env,user:AuthUser):Promise<void>{
+  try{
+    const state=await env.DB.prepare(`SELECT value FROM site_settings WHERE key='legacy_demo_articles_imported'`).first<any>();
+    if(state) return;
+    const now=nowIso();
+    for(const a of legacyDemoArticles){
+      const exists=await env.DB.prepare(`SELECT id FROM articles WHERE slug=?`).bind(a.slug).first<any>();
+      if(exists) continue;
+      await env.DB.prepare(`INSERT INTO articles (id,slug,title,subtitle,excerpt,body,category,status,cover_media_id,read_time_minutes,featured,seo_title,seo_description,published_at,created_by,updated_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'published',NULL,?,?,?,?,?,?,?,?,?)`)
+        .bind(uuid(),a.slug,a.title,a.subtitle,a.excerpt,a.body,a.category,a.read,a.featured,null,null,a.published_at,user.id,user.id,a.published_at,now).run();
+    }
+    await env.DB.prepare(`INSERT INTO site_settings (key,value,updated_at) VALUES ('legacy_demo_articles_imported','1',?) ON CONFLICT(key) DO UPDATE SET value='1',updated_at=excluded.updated_at`).bind(now).run();
+  }catch(err){
+    if(String(err).includes('no such table: site_settings')) return;
+    throw err;
+  }
+}
+
+export async function areArticlesManaged(env:Env):Promise<boolean>{
+  try{return Boolean(await env.DB.prepare(`SELECT 1 AS ok FROM site_settings WHERE key='legacy_demo_articles_imported'`).first<any>());}
+  catch{return false;}
+}
+
 async function resetReferencingIssues(env:Env,request:Request,user:AuthUser,articleId:string,reason:string):Promise<void>{
   const {results}=await env.DB.prepare(`SELECT DISTINCT i.id,i.status,i.volume FROM issues i JOIN issue_articles ia ON ia.issue_id=i.id WHERE ia.article_id=? AND i.status IN ('in_review','approved','published')`).bind(articleId).all<any>();
   for(const issue of results||[]){
@@ -102,7 +134,8 @@ async function snapshot(env: Env, articleId: string, user: AuthUser, note: strin
     .bind(uuid(), articleId, n, JSON.stringify(article), note, user.id, nowIso()).run();
 }
 
-export async function listAdminArticles(env: Env): Promise<any[]> {
+export async function listAdminArticles(env: Env, user: AuthUser): Promise<any[]> {
+  await ensureLegacyDemoArticles(env,user);
   const { results } = await env.DB.prepare(`SELECT a.*, m.public_url AS cover_url FROM articles a LEFT JOIN media_assets m ON m.id=a.cover_media_id ORDER BY COALESCE(a.published_at,a.updated_at) DESC`).all();
   return results || [];
 }
@@ -222,4 +255,18 @@ export async function restoreArticleRevision(env: Env, request: Request, user: A
     .bind(s.slug,s.title,s.subtitle,s.excerpt,s.body,s.category,s.cover_media_id,s.read_time_minutes,s.featured,s.seo_title,s.seo_description,user.id,nowIso(),articleId).run();
   await audit(env, request, user, 'article.revision.restore', 'article', articleId, { revisionId });
   return env.DB.prepare(`SELECT * FROM articles WHERE id=?`).bind(articleId).first();
+}
+
+
+export async function deleteArticle(env:Env,request:Request,user:AuthUser,id:string):Promise<any>{
+  requireRole(user,'admin');
+  const current=await env.DB.prepare(`SELECT * FROM articles WHERE id=?`).bind(id).first<any>();
+  if(!current) throw new HttpError(404,'找不到文章');
+  if(current.status==='published' && user.role!=='owner') throw new HttpError(403,'只有 owner 可以永久刪除已發布文章');
+  await resetReferencingIssues(env,request,user,id,'article_deleted');
+  await env.DB.prepare(`UPDATE social_drafts SET article_id=NULL WHERE article_id=?`).bind(id).run();
+  await env.DB.prepare(`UPDATE publish_jobs SET status='cancelled',updated_at=? WHERE job_type='article_publish' AND entity_id=? AND status='pending'`).bind(nowIso(),id).run();
+  await audit(env,request,user,'article.delete','article',id,{slug:current.slug,title:current.title,status:current.status});
+  await env.DB.prepare(`DELETE FROM articles WHERE id=?`).bind(id).run();
+  return {deleted:true,id,slug:current.slug,title:current.title};
 }

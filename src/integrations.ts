@@ -187,7 +187,7 @@ export async function handleOAuthCallback(env: Env, request: Request, provider: 
 }
 
 export async function systemIntegrationStatus(env:Env):Promise<any>{
-  const {results}=await env.DB.prepare(`SELECT provider,status,account_label,external_account_id,token_expires_at,updated_at FROM integrations ORDER BY provider,updated_at DESC`).all();
+  const {results}=await env.DB.prepare(`SELECT id,provider,status,account_label,external_account_id,token_expires_at,updated_at FROM integrations ORDER BY provider,updated_at DESC`).all();
   return { integrations:results||[], configured:{
     openai:Boolean(env.OPENAI_API_KEY), resend:Boolean(env.RESEND_API_KEY&&env.RESEND_WEBHOOK_SECRET), canva:Boolean(env.CANVA_CLIENT_ID&&env.CANVA_CLIENT_SECRET),
     meta:Boolean(env.META_APP_ID&&env.META_APP_SECRET), threads:Boolean(env.THREADS_APP_ID&&env.THREADS_APP_SECRET), xiaohongshu:Boolean(env.XHS_CLIENT_ID&&env.XHS_CLIENT_SECRET),

@@ -80,7 +80,7 @@ hashtags 可為空陣列；copy 若需要 hashtag，請把適量標籤自然附�
   const res=await fetch('https://api.openai.com/v1/responses',{
     method:'POST',
     headers:{authorization:`Bearer ${env.OPENAI_API_KEY}`,'content-type':'application/json'},
-    body:JSON.stringify({model:'gpt-6-luna',instructions,input:source,max_output_tokens:1400})
+    body:JSON.stringify({model:env.OPENAI_TEXT_MODEL||'gpt-6-luna',instructions,input:source,max_output_tokens:1400})
   });
   const data:any=await res.json().catch(()=>({}));
   if(!res.ok) throw new HttpError(502,`AI 文字生成失敗：${data?.error?.message||res.status}`);

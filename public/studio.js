@@ -652,6 +652,16 @@ async function loadSystem(){
   }catch(err){toast(err.message)}
 }
 $('#addStaffBtn').onclick=async()=>{if(!canAdmin())return;try{await api('/studio/api/admin/staff',{method:'POST',body:JSON.stringify({email:$('#staffEmail').value,display_name:$('#staffName').value,role:$('#staffRole').value})});toast('管理員資料已更新');$('#staffEmail').value='';$('#staffName').value='';loadSystem()}catch(err){toast(err.message)}};
+$('#checkOpenAiBtn').onclick=async()=>{
+  if(!canAdmin())return toast('只有 Owner／Admin 可以測試外部整合');
+  const btn=$('#checkOpenAiBtn'),out=$('#openAiCheckResult'),old=btn.textContent;btn.disabled=true;btn.textContent='測試中…';out.textContent='';
+  try{
+    const d=await api('/studio/api/admin/system/openai/check');
+    out.textContent=(d.models||[]).map(x=>x.model+'：'+(x.ok?'可使用':x.message)).join(' · ');
+    toast(d.ok?'OpenAI 連線正常':'OpenAI 有模型尚不可用');
+  }catch(err){out.textContent=err.message;toast(err.message)}
+  finally{btn.disabled=false;btn.textContent=old}
+};
 $('#backupBtn').onclick=async()=>{try{const d=await api('/studio/api/admin/backups',{method:'POST',body:'{}'});toast('備份完成：'+d.backup.object_key);loadSystem()}catch(err){toast(err.message)}};
 $('#refreshBtn').onclick=()=>location.reload();
 

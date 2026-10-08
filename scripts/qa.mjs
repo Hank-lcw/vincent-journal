@@ -13,6 +13,10 @@ for(const p of ['public/app.js','public/experience.js','public/studio.js','publi
   if(r.status!==0) fail(`${p} syntax: ${r.stderr||r.stdout}`);
 }
 
+const compareRegression=spawnSync(process.execPath,['scripts/test-media-compare.mjs'],{encoding:'utf8'});
+if(compareRegression.status!==0) fail('media comparison regression: '+(compareRegression.stderr||compareRegression.stdout));
+else console.log(compareRegression.stdout.trim());
+
 const wr=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8'));
 if(wr?.assets?.html_handling!=='none') fail('assets.html_handling must remain "none" to prevent Studio redirect loops');
 if(wr?.assets?.run_worker_first!==true) fail('Worker must run before static assets');

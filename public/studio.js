@@ -655,14 +655,10 @@ function setCompareOverlayMode(ratio,note){
   $('#compareModeNote').textContent=note||'';
   updateCompareSlider();
 }
-function setCompareSideBySideMode(note){
-  const stage=$('#compareStage');
-  stage.classList.add('is-side-by-side');
-  stage.style.aspectRatio='';
-  $('#compareRightClip').style.clipPath='none';
-  $('#compareDivider').hidden=true;
-  $('.compare-range').hidden=true;
-  $('#compareModeNote').textContent=note||'';
+// All pairs keep the interactive divider. When cropping metadata is unavailable,
+ // images remain letterboxed (object-fit: contain) instead of distorted.
+function setCompareUnalignedMode(ratio,note){
+  setCompareOverlayMode(ratio||16/9,note);
 }
 function populateCompare(id){
   const fam=mediaFamily(id);
@@ -680,7 +676,9 @@ function populateCompare(id){
   left.disabled=empty;right.disabled=empty;
   if(!empty)renderCompare();
 }
+let compareRequestToken=0;
 async function renderCompare(){
+  const token=++compareRequestToken;
   const a=mediaCache.find(x=>x.id===$('#compareLeft').value),b=mediaCache.find(x=>x.id===$('#compareRight').value);
   if(!a||!b)return;
   const leftImg=$('#compareLeftImg'),rightImg=$('#compareRightImg');
@@ -690,6 +688,7 @@ async function renderCompare(){
     // Direct source -> crop derivative: reconstruct the exact source crop before overlaying.
     if(b.parent_media_id===a.id && compareCropMeta(b)){
       const aligned=await sourceCropPreview(a,b);
+      if(token!==compareRequestToken)return;
       leftImg.src=aligned.url;
       rightImg.src=mediaUrl(b);
       setCompareOverlayMode(aligned.ratio,`已自動對齊：V${mediaFamilyIndex(a)} 原圖依 V${mediaFamilyIndex(b)} 的裁切範圍重建後比較。`);
@@ -697,6 +696,7 @@ async function renderCompare(){
     }
     if(a.parent_media_id===b.id && compareCropMeta(a)){
       const aligned=await sourceCropPreview(b,a);
+      if(token!==compareRequestToken)return;
       leftImg.src=mediaUrl(a);
       rightImg.src=aligned.url;
       setCompareOverlayMode(aligned.ratio,`已自動對齊：V${mediaFamilyIndex(b)} 原圖依 V${mediaFamilyIndex(a)} 的裁切範圍重建後比較。`);
@@ -704,6 +704,7 @@ async function renderCompare(){
     }
 
     const [ai,bi]=await Promise.all([loadCompareImage(mediaUrl(a)),loadCompareImage(mediaUrl(b))]);
+    if(token!==compareRequestToken)return;
     const ar=ai.naturalWidth/ai.naturalHeight,br=bi.naturalWidth/bi.naturalHeight;
     leftImg.src=mediaUrl(a);
     rightImg.src=mediaUrl(b);
@@ -714,23 +715,58 @@ async function renderCompare(){
       return;
     }
 
-    // Different, unrelated aspect ratios should never be overlaid: it is visually misleading.
-    setCompareSideBySideMode('兩個版本的比例不同，且不是直接的裁切母子版本，因此改用並排比較，避免錯誤縮放或假性位移。');
+    // Different proportions: keep the splitter and letterbox both versions,
+    // without stretching either image to pretend their framing is identical.
+    setCompareUnalignedMode((ar+br)/2,'兩個版本比例不同：保留可拖曳分隔線，兩側圖片等比例顯示；構圖不會強制對齊。');
   }catch(err){
-    $('#compareModeNote').textContent='版本比較載入失敗：'+err.message;
-    setCompareSideBySideMode('無法自動對齊，暫以並排方式顯示。');
+    if(token!==compareRequestToken)return;
     leftImg.src=mediaUrl(a);
     rightImg.src=mediaUrl(b);
+    setCompareUnalignedMode(16/9,'無法精確對齊圖片，仍可拖曳分隔線比較（圖片維持原始比例）。');
   }
 }
 function updateCompareSlider(){
-  const stage=$('#compareStage');
-  if(stage?.classList.contains('is-side-by-side'))return;
-  const v=Number($('#compareSlider').value||50);
+  const v=Math.min(100,Math.max(0,Number($('#compareSlider').value??50)));
   $('#compareRightClip').style.clipPath=`inset(0 0 0 ${v}%)`;
-  $('#compareDivider').style.left=v+'%';
+  const divider=$('#compareDivider');
+  divider.style.left=v+'%';
+  divider.setAttribute('aria-valuenow',String(v));
+  divider.setAttribute('aria-valuetext',v+'%');
   $('#compareOut').textContent=v+'%';
 }
+// In addition to the range input, let the visitor drag or tap the picture itself.
+const compareStage=$('#compareStage'), compareDivider=$('#compareDivider');
+let compareDragging=false;
+function moveComparePointer(ev){
+  const rect=compareStage.getBoundingClientRect();
+  if(rect.width<=0)return;
+  const position=Math.min(100,Math.max(0,Math.round((ev.clientX-rect.left)/rect.width*100)));
+  $('#compareSlider').value=String(position);
+  updateCompareSlider();
+}
+compareStage.addEventListener('pointerdown',ev=>{
+  if(ev.button!==0||compareStage.hidden)return;
+  compareDragging=true;
+  compareStage.setPointerCapture?.(ev.pointerId);
+  moveComparePointer(ev);
+});
+compareStage.addEventListener('pointermove',ev=>{if(compareDragging)moveComparePointer(ev)});
+const stopCompareDragging=()=>{compareDragging=false};
+compareStage.addEventListener('pointerup',stopCompareDragging);
+compareStage.addEventListener('pointercancel',stopCompareDragging);
+compareStage.addEventListener('lostpointercapture',stopCompareDragging);
+compareDivider.addEventListener('keydown',ev=>{
+  const value=Number($('#compareSlider').value);
+  let next;
+  if(ev.key==='ArrowLeft'||ev.key==='ArrowDown')next=value-5;
+  else if(ev.key==='ArrowRight'||ev.key==='ArrowUp')next=value+5;
+  else if(ev.key==='Home')next=0;
+  else if(ev.key==='End')next=100;
+  else return;
+  ev.preventDefault();
+  $('#compareSlider').value=String(Math.min(100,Math.max(0,next)));
+  updateCompareSlider();
+});
 $('#compareLeft').onchange=renderCompare;
 $('#compareRight').onchange=renderCompare;
 $('#compareSlider').oninput=updateCompareSlider;

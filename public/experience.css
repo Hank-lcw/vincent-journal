@@ -275,3 +275,36 @@ body.vj-page-leaving .vj-transition-veil{
   body::-webkit-scrollbar-thumb{background:#cbc7bd;border:3px solid var(--ivory);border-radius:99px}
   body::-webkit-scrollbar-thumb:hover{background:#aaa69d}
 }
+
+
+/* Mobile/touch feedback without desktop-style hover theater */
+a,button{-webkit-tap-highlight-color:transparent}
+@media(hover:none){
+  .selection-card:active,.journal-card:active,.discover-row:active{opacity:.86}
+  .outline-cta:active,.newsletter-form button:active,.filter-tabs button:active{scale:.985}
+  .site-nav{scroll-snap-type:x proximity}
+  .site-nav a{scroll-snap-align:center}
+}
+
+/* Long-form reading polish */
+.article-body>p:first-of-type::first-letter{
+  font-family:var(--serif);
+  font-size:3.15em;
+  line-height:.78;
+  float:left;
+  margin:.11em .13em 0 0;
+  color:var(--olive);
+}
+.article-body blockquote{
+  font-family:var(--serif);
+  font-size:1.28em;
+  line-height:1.75;
+  border-left:0;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  padding:1.15em .2em;
+  color:#555a50;
+}
+@media(max-width:620px){
+  .article-body>p:first-of-type::first-letter{font-size:2.7em}
+}

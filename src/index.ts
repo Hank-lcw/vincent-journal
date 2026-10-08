@@ -69,7 +69,7 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
         (SELECT COUNT(*) FROM media_assets) media,
         (SELECT COUNT(*) FROM subscribers WHERE status='active') subscribers
       `).first<any>();
-      return json({user,cloudflare:{d1:true,r2_media:true,r2_backups:true,access:Boolean(env.TEAM_DOMAIN&&env.POLICY_AUD)},...status,email_domain:emailDomain,counts:db||{}});
+      return json({user,cloudflare:{d1:true,r2_media:true,r2_backups:true,access:Boolean(env.TEAM_DOMAIN&&env.POLICY_AUD)},...status,email_domain:emailDomain,resend_sending_ready:Boolean(env.RESEND_API_KEY),newsletter_segment_ready:Boolean(env.RESEND_SEGMENT_ID&&!env.RESEND_SEGMENT_ID.includes('REPLACE_')),counts:db||{}});
     }
 
     if(method==='GET' && p==='/api/admin/system/openai/check') return json(await checkOpenAI(env,user));

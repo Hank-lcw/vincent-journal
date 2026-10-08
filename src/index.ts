@@ -24,6 +24,7 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
   const publicHtmlAliases:Record<string,string>={'/':'/index.html','/discover':'/discover.html','/article':'/article.html','/issue':'/issue.html'};
   if(method==='GET' && publicHtmlAliases[p]){ const assetUrl=new URL(request.url); assetUrl.pathname=publicHtmlAliases[p]; return env.ASSETS.fetch(new Request(assetUrl.toString(),request)); }
 
+  if(method==='GET' && p==='/api/public/config') return json({turnstile_site_key:env.TURNSTILE_SECRET_KEY&&env.TURNSTILE_SITE_KEY?env.TURNSTILE_SITE_KEY:null});
   if(method==='GET' && p==='/api/public/articles') return json({articles:await listPublicArticles(env,url)});
   if(method==='GET' && seg[0]==='api' && seg[1]==='public' && seg[2]==='articles' && seg[3]) return json({article:await getPublicArticle(env,seg[3])});
 

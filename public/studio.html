@@ -246,17 +246,32 @@
 <section class="view" data-view="social">
   <div class="panel"><h2>社群發布工作室</h2><p>Instagram、Facebook、Threads、小紅書各自使用不同內容邏輯；不把同一份文字複製四次。</p><div id="socialStatus"></div></div>
   <div class="panel" id="socialEditorPanel">
-    <h2 id="socialEditorTitle">建立社群草稿</h2>
-    <div class="form-grid">
-      <div class="field"><label>平台</label><select id="socialPlatform"><option value="instagram">Instagram</option><option value="facebook">Facebook</option><option value="threads">Threads</option><option value="xiaohongshu">小紅書</option></select></div>
-      <div class="field"><label>來源文章</label><select id="socialArticle"><option value="">不綁定文章</option></select></div>
-      <div class="field field-wide"><label>標題／內部辨識名稱</label><input id="socialTitle" maxlength="250"></div>
-      <div class="field field-wide"><label>貼文文字</label><textarea id="socialCopy" maxlength="12000"></textarea></div>
-      <div class="field"><label>預計發布時間（選填）</label><input id="socialSchedule" type="datetime-local"></div>
-      <div class="field field-wide"><label>圖片素材（可多選）</label><select id="socialMedia" multiple class="multi-select"></select></div>
+    <div class="panel-head"><div><h2 id="socialEditorTitle">建立社群草稿</h2><p>編輯內容時右側會即時模擬平台首屏，實際平台介面與截斷規則仍以發布當下為準。</p></div></div>
+    <div class="social-compose-layout">
+      <div class="social-compose-editor">
+        <div class="form-grid">
+          <div class="field"><label>平台</label><select id="socialPlatform"><option value="instagram">Instagram</option><option value="facebook">Facebook</option><option value="threads">Threads</option><option value="xiaohongshu">小紅書</option></select></div>
+          <div class="field"><label>來源文章</label><select id="socialArticle"><option value="">不綁定文章</option></select></div>
+          <div class="field field-wide"><label>標題／內部辨識名稱</label><input id="socialTitle" maxlength="250"></div>
+          <div class="field field-wide"><label>貼文文字</label><textarea id="socialCopy" maxlength="12000"></textarea></div>
+          <div class="field"><label>預計發布時間（選填）</label><input id="socialSchedule" type="datetime-local"></div>
+          <div class="field field-wide"><label>圖片素材（可多選）</label><select id="socialMedia" multiple class="multi-select"></select></div>
+        </div>
+        <div class="studio-actions editor-actions"><button class="btn" id="generateSocialCopyBtn">AI 依平台產生文案</button><button class="btn" id="saveSocialDraftBtn">儲存草稿</button><button class="btn primary" id="submitSocialDraftBtn">儲存並送審</button><button class="btn" id="cancelSocialEditBtn" hidden>取消編輯</button></div>
+        <p class="form-note" id="socialAiBrief"></p>
+      </div>
+      <aside class="social-preview-panel" aria-label="社群發布預覽">
+        <div class="social-preview-head">
+          <div><div class="meta">LIVE PREVIEW</div><h3>發布前首屏</h3></div>
+          <span class="social-preview-platform" id="socialPreviewPlatform">Instagram</span>
+        </div>
+        <div class="social-device">
+          <div id="socialPreview" class="social-preview-content"></div>
+        </div>
+        <div id="socialPreviewChecks" class="social-preview-checks"></div>
+        <p class="form-note">這是 VINCENT STUDIO 的版面與閱讀密度模擬，不是平台官方 UI。</p>
+      </aside>
     </div>
-    <div class="studio-actions editor-actions"><button class="btn" id="generateSocialCopyBtn">AI 依平台產生文案</button><button class="btn" id="saveSocialDraftBtn">儲存草稿</button><button class="btn primary" id="submitSocialDraftBtn">儲存並送審</button><button class="btn" id="cancelSocialEditBtn" hidden>取消編輯</button></div>
-    <p class="form-note" id="socialAiBrief"></p>
     <div id="socialDrafts"></div>
   </div>
   <div class="panel" id="canvaPanel">

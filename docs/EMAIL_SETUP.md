@@ -4,9 +4,9 @@
 讀者輸入 Email 後不會立刻進入正式名單：
 1. Email 格式檢查
 2. 基本網域檢查
-3. 選用 Cloudflare Turnstile
+3. 選用 Cloudflare Turnstile（需同時設定 Site Key + Secret Key；只設定一半時不會啟用）
 4. 寄出一次性確認信
-5. 點擊確認連結後才變成 `active`
+5. 點擊確認連結後會先看到確認頁，再以 POST 明確確認後才變成 `active`
 6. 才同步寄件服務的正式受眾名單
 7. 正式電子報只寄給 verified active contacts
 
@@ -22,7 +22,7 @@
 ```
 https://YOUR_DOMAIN/api/webhooks/resend
 ```
-至少接收 bounce、complaint、suppression、unsubscribe。
+至少接收 sent／delivered、bounce、complaint、suppression、unsubscribe；broadcast event 會同步更新 campaign 狀態。
 
 Webhook signing secret 存入 `RESEND_WEBHOOK_SECRET`。Worker 以 webhook event ID 做 idempotency。
 

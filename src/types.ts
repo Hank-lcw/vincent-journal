@@ -21,6 +21,9 @@ export interface Env {
   XHS_REDIRECT_URI: string;
 
   OPENAI_API_KEY?: string;
+  OPENAI_TEXT_MODEL?: string;
+  OPENAI_IMAGE_MODEL?: string;
+  OPENAI_IMAGE_EDIT_MODEL?: string;
   RESEND_API_KEY?: string;
   RESEND_WEBHOOK_SECRET?: string;
   TOKEN_ENCRYPTION_KEY_B64?: string;

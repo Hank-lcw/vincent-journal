@@ -308,3 +308,9 @@ a,button{-webkit-tap-highlight-color:transparent}
 @media(max-width:620px){
   .article-body>p:first-of-type::first-letter{font-size:2.7em}
 }
+
+/* Mobile Safari: avoid reserving dozens of compositor layers for scrollable editorial cards. */
+@media (hover:none), (pointer:coarse) {
+ .hero-media img,.selection-card img,.journal-card img,.discover-row-image img,.about-photo img,.about-quote img{will-change:auto}
+ .vj-transition-veil{transition-duration:.25s}
+}

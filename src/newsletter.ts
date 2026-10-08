@@ -83,11 +83,15 @@ async function syncResendContact(env: Env, email: string): Promise<string | null
   return data?.id || null;
 }
 
-export async function verifySubscription(env: Env, token: string): Promise<Response> {
+export async function verifySubscription(env: Env, token: string, confirm = false): Promise<Response> {
+  if (!token) return html(mailShell('確認連結無效','<p>缺少確認資訊。</p>'),400);
   const hash = await sha256(token);
   const row = await env.DB.prepare(`SELECT * FROM subscribers WHERE verification_token_hash=? AND status='pending'`).bind(hash).first<any>();
   if (!row || !row.verification_expires_at || new Date(row.verification_expires_at).getTime() < Date.now()) {
     return html(mailShell('確認連結無效', `<p style="line-height:1.9">這個確認連結已失效或已使用。你可以回到 VINCENT JOURNAL 再輸入一次電子郵件。</p><p><a href="${env.PUBLIC_BASE_URL}" style="color:#5f6853">返回 VINCENT JOURNAL →</a></p>`),400);
+  }
+  if (!confirm) {
+    return html(mailShell('確認你的訂閱', `<p style="line-height:1.9">請再確認一次，你希望使用 <strong>${escapeHtml(row.email)}</strong> 訂閱 VINCENT JOURNAL。</p><form method="post" action="/api/newsletter/verify"><input type="hidden" name="token" value="${escapeHtml(token)}"><button type="submit" style="border:0;background:#69715d;color:white;padding:13px 22px;letter-spacing:.08em;cursor:pointer">確認訂閱</button></form><p style="font-size:12px;color:#777;margin-top:24px">這一步也可避免郵件安全掃描器自動完成訂閱。</p>`));
   }
   const contactId = await syncResendContact(env,row.email).catch(e=>{console.error('resend_contact_sync',e); return null;});
   await env.DB.prepare(`UPDATE subscribers SET status='active',verified_at=?,verification_token_hash=NULL,verification_expires_at=NULL,resend_contact_id=COALESCE(?,resend_contact_id),updated_at=? WHERE id=?`)
@@ -95,10 +99,14 @@ export async function verifySubscription(env: Env, token: string): Promise<Respo
   return html(mailShell('訂閱完成', `<p style="line-height:1.9">你已完成 VINCENT JOURNAL 的訂閱。之後有新一期刊物時，我們會把它送到這個信箱。</p><p style="margin-top:28px"><a href="${env.PUBLIC_BASE_URL}" style="color:#5f6853">回到 VINCENT JOURNAL →</a></p>`));
 }
 
-export async function unsubscribe(env: Env, token: string): Promise<Response> {
+export async function unsubscribe(env: Env, token: string, confirm = false): Promise<Response> {
+  if (!token) return html(mailShell('退訂連結無效','<p>缺少退訂資訊。</p>'),400);
   const hash = await sha256(token);
   const row = await env.DB.prepare(`SELECT * FROM subscribers WHERE unsubscribe_token_hash=?`).bind(hash).first<any>();
   if (!row) return html(mailShell('退訂連結無效','<p>找不到這個訂閱紀錄。</p>'),404);
+  if (!confirm) {
+    return html(mailShell('確認取消訂閱', `<p style="line-height:1.9">確認停止寄送 VINCENT JOURNAL 到 <strong>${escapeHtml(row.email)}</strong>？</p><form method="post" action="/api/newsletter/unsubscribe"><input type="hidden" name="token" value="${escapeHtml(token)}"><button type="submit" style="border:1px solid #777;background:white;color:#242522;padding:12px 20px;cursor:pointer">確認退訂</button></form>`));
+  }
   await env.DB.prepare(`UPDATE subscribers SET status='unsubscribed',unsubscribed_at=?,updated_at=? WHERE id=?`).bind(nowIso(),nowIso(),row.id).run();
   if (env.RESEND_API_KEY) await resendFetch(env,`/contacts/${encodeURIComponent(row.email)}`,{method:'PATCH',body:JSON.stringify({unsubscribed:true})}).catch(e=>console.error('resend_unsubscribe_sync',e));
   return html(mailShell('已取消訂閱', `<p style="line-height:1.9">已停止寄送 VINCENT JOURNAL 電子報到 ${escapeHtml(row.email)}。謝謝你曾經閱讀。</p>`));

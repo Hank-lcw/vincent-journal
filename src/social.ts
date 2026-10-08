@@ -19,6 +19,16 @@ function normalizeScheduledAt(value:any):string|null{
   const d=new Date(String(value)); if(Number.isNaN(d.getTime())) throw new HttpError(400,'scheduled_at 格式無效');
   return d.toISOString();
 }
+function normalizeStoryboard(value:any):any[]{
+  if(value===undefined||value===null) return [];
+  if(!Array.isArray(value)) throw new HttpError(400,'storyboard 必須是陣列');
+  return value.slice(0,10).map((x:any,i:number)=>({
+    role:String(x?.role||`Slide ${i+1}`).slice(0,80),
+    headline:String(x?.headline||'').slice(0,180),
+    body:String(x?.body||'').slice(0,800),
+    visual_brief:String(x?.visual_brief||'').slice(0,700)
+  }));
+}
 function validateSocialForReview(platform:string,title:string,copy:string,mediaIds:string[]):void{
   if(!String(copy||title||'').trim()) throw new HttpError(409,'送審前請先完成貼文文字');
   if(platform==='instagram' && !mediaIds.length) throw new HttpError(409,'Instagram 貼文送審前至少需要一張圖片');
@@ -27,7 +37,7 @@ function validateSocialForReview(platform:string,title:string,copy:string,mediaI
 export async function listSocialDrafts(env:Env,user:AuthUser):Promise<any[]> {
   requireRole(user,'editor');
   const {results}=await env.DB.prepare(`SELECT s.*,a.title article_title FROM social_drafts s LEFT JOIN articles a ON a.id=s.article_id ORDER BY s.updated_at DESC LIMIT 500`).all<any>();
-  return (results||[]).map((x:any)=>({...x,media_ids:safeJson(x.media_ids_json,[])}));
+  return (results||[]).map((x:any)=>({...x,media_ids:safeJson(x.media_ids_json,[]),storyboard:safeJson(x.storyboard_json,[])}));
 }
 
 function responseText(data:any):string{
@@ -94,15 +104,57 @@ hashtags 可為空陣列；copy 若需要 hashtag，請把適量標籤自然附�
   };
 }
 
+
+export async function generateSocialStoryboard(env:Env,user:AuthUser,input:any):Promise<any>{
+  requireRole(user,'editor');
+  if(!env.OPENAI_API_KEY) throw new HttpError(503,'OPENAI_API_KEY 尚未設定');
+  const platform=String(input.platform||'instagram'); if(!platforms.has(platform)) throw new HttpError(400,'不支援的社群平台');
+  const articleId=String(input.article_id||'').trim();
+  let article:any=null;
+  if(articleId) article=await env.DB.prepare(`SELECT title,subtitle,excerpt,body,category FROM articles WHERE id=?`).bind(articleId).first<any>();
+  const title=String(article?.title||input.title||'').trim().slice(0,250);
+  const copy=String(input.copy||'').trim().slice(0,5000);
+  const excerpt=String(article?.excerpt||'').trim().slice(0,1200);
+  const body=String(article?.body||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,6500);
+  if(!title&&!copy&&!excerpt&&!body) throw new HttpError(400,'請先選擇來源文章或提供貼文內容');
+  const requested=Math.max(3,Math.min(10,Number(input.slide_count)||5));
+  const platformGuide=platform==='xiaohongshu'?'小紅書圖文筆記，首張標題清楚、每張資訊密度適中，使用自然簡體中文但不要標題黨':
+    platform==='instagram'?'Instagram 輪播，首張 Hook 克制有力，中段每張只講一件事，最後自然收束':
+    platform==='facebook'?'Facebook 圖文輪播，重視脈絡與可分享性':'Threads 圖片串聯，文字感自然、每張像一個可停留的觀點';
+  const instructions=`你是 VINCENT JOURNAL 的資深視覺編輯。請把來源內容規劃成 ${requested} 張社群輪播 storyboard。
+品牌語氣：專業、克制、穩重、有溫度；不製造焦慮、不誇大醫療效果、不做廉價流量標題。
+平台：${platformGuide}
+每張投影片只處理一個清楚任務。role 使用簡短英文角色，例如 HOOK、CONTEXT、ANATOMY、MECHANISM、EVIDENCE、TAKEAWAY、CTA；不需要每次都用相同角色。
+只輸出合法 JSON，不要 markdown：
+{"slides":[{"role":"HOOK","headline":"畫面主標","body":"畫面可放的短文字","visual_brief":"這張圖應如何呈現，包含構圖、主體、資訊圖或照片方向"}]}
+slides 必須剛好 ${requested} 張。`;
+  const source=`來源標題：${title}
+來源摘要：${excerpt}
+貼文草稿：${copy}
+文章內文節錄：${body}`;
+  const res=await fetch('https://api.openai.com/v1/responses',{
+    method:'POST',
+    headers:{authorization:`Bearer ${env.OPENAI_API_KEY}`,'content-type':'application/json'},
+    body:JSON.stringify({model:env.OPENAI_TEXT_MODEL||'gpt-6-luna',instructions,input:source,max_output_tokens:2200})
+  });
+  const data:any=await res.json().catch(()=>({}));
+  if(!res.ok) throw new HttpError(502,`AI Storyboard 生成失敗：${data?.error?.message||res.status}`);
+  const raw=responseText(data); if(!raw) throw new HttpError(502,'AI 沒有回傳 Storyboard');
+  let parsed:any; try{parsed=JSON.parse(cleanJsonText(raw));}catch{throw new HttpError(502,'AI Storyboard 格式不正確');}
+  const slides=normalizeStoryboard(parsed?.slides||[]);
+  if(slides.length<3) throw new HttpError(502,'AI Storyboard 張數不足');
+  return {slides};
+}
+
 export async function createSocialDraft(env:Env,request:Request,user:AuthUser,input:any):Promise<any>{
   requireRole(user,'editor');
   const platform=String(input.platform||''); if(!platforms.has(platform)) throw new HttpError(400,'不支援的社群平台');
   const title=String(input.title||'').slice(0,250), copy=String(input.copy||'').slice(0,12000);
-  const mediaIds=normalizeMediaIds(input.media_ids), scheduledAt=normalizeScheduledAt(input.scheduled_at);
+  const mediaIds=normalizeMediaIds(input.media_ids), scheduledAt=normalizeScheduledAt(input.scheduled_at), storyboard=normalizeStoryboard(input.storyboard);
   const status=input.submit_for_review?'in_review':'draft'; if(status==='in_review') validateSocialForReview(platform,title,copy,mediaIds);
   const id=uuid(),now=nowIso();
-  await env.DB.prepare(`INSERT INTO social_drafts (id,article_id,issue_id,platform,format,title,copy,media_ids_json,canva_design_id,status,scheduled_at,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .bind(id,input.article_id||null,input.issue_id||null,platform,String(input.format||'post').slice(0,80),title,copy,JSON.stringify(mediaIds),input.canva_design_id||null,status,scheduledAt,user.id,now,now).run();
+  await env.DB.prepare(`INSERT INTO social_drafts (id,article_id,issue_id,platform,format,title,copy,media_ids_json,storyboard_json,canva_design_id,status,scheduled_at,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .bind(id,input.article_id||null,input.issue_id||null,platform,String(input.format||'post').slice(0,80),title,copy,JSON.stringify(mediaIds),JSON.stringify(storyboard),input.canva_design_id||null,status,scheduledAt,user.id,now,now).run();
   if(status==='in_review') await env.DB.prepare(`INSERT INTO approvals (id,entity_type,entity_id,action,note,actor_id,created_at) VALUES (?,'social',?,'submit',?,?,?)`).bind(uuid(),id,String(input.note||''),user.id,now).run();
   await audit(env,request,user,'social.create','social',id,{platform,status});
   return env.DB.prepare(`SELECT * FROM social_drafts WHERE id=?`).bind(id).first();
@@ -113,9 +165,10 @@ export async function updateSocialDraft(env:Env,request:Request,user:AuthUser,id
   const platform=input.platform!==undefined?String(input.platform):row.platform;
   if(!platforms.has(platform)) throw new HttpError(400,'不支援的社群平台');
   const mediaIds=input.media_ids!==undefined?normalizeMediaIds(input.media_ids):safeJson<string[]>(row.media_ids_json,[]);
+  const storyboard=input.storyboard!==undefined?normalizeStoryboard(input.storyboard):safeJson<any[]>(row.storyboard_json,[]);
   const scheduledAt=input.scheduled_at!==undefined?normalizeScheduledAt(input.scheduled_at):row.scheduled_at;
   const nextStatus=row.status==='in_review'?'draft':row.status;
-  await env.DB.prepare(`UPDATE social_drafts SET article_id=?,issue_id=?,platform=?,format=?,title=?,copy=?,media_ids_json=?,scheduled_at=?,status=?,approved_by=NULL,updated_at=? WHERE id=?`)
+  await env.DB.prepare(`UPDATE social_drafts SET article_id=?,issue_id=?,platform=?,format=?,title=?,copy=?,media_ids_json=?,storyboard_json=?,scheduled_at=?,status=?,approved_by=NULL,updated_at=? WHERE id=?`)
     .bind(
       input.article_id!==undefined?(input.article_id||null):row.article_id,
       input.issue_id!==undefined?(input.issue_id||null):row.issue_id,
@@ -124,6 +177,7 @@ export async function updateSocialDraft(env:Env,request:Request,user:AuthUser,id
       input.title!==undefined?String(input.title).slice(0,250):row.title,
       input.copy!==undefined?String(input.copy).slice(0,12000):row.copy,
       JSON.stringify(mediaIds),
+      JSON.stringify(storyboard),
       scheduledAt,
       nextStatus,nowIso(),id
     ).run();

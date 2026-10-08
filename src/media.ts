@@ -112,6 +112,8 @@ export async function setMediaVisibility(env: Env, request: Request, user: AuthU
   if (visibility === 'private') {
     const articleUse = await env.DB.prepare(`SELECT id,title FROM articles WHERE cover_media_id=? AND status='published' LIMIT 1`).bind(id).first<any>();
     if (articleUse) throw new HttpError(409,`這張圖片正被已發布文章「${articleUse.title}」使用，不能改為私人`);
+    const issueUse = await env.DB.prepare(`SELECT id,title,volume FROM issues WHERE cover_media_id=? AND status='published' LIMIT 1`).bind(id).first<any>();
+    if (issueUse) throw new HttpError(409,`這張圖片正被已發布刊物 VOL. ${String(issueUse.volume).padStart(3,'0')}「${issueUse.title}」使用，不能改為私人`);
   }
   const publicUrl = visibility === 'public' ? `${env.PUBLIC_BASE_URL.replace(/\/$/,'')}/media/${id}` : null;
   await env.DB.prepare(`UPDATE media_assets SET visibility=?, public_url=? WHERE id=?`).bind(visibility,publicUrl,id).run();

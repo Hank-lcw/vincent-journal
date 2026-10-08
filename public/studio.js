@@ -1,7 +1,7 @@
 (()=>{
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const e=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-let me=null, articlesCache=[], mediaCache=[], campaignsCache=[], socialDraftsCache=[], canvaDataset=null, canvaAssetCache={}, editingArticleId=null, editMediaId=null, editingCampaignId=null, editingSocialId=null;
+let me=null, articlesCache=[], issuesCache=[], mediaCache=[], campaignsCache=[], socialDraftsCache=[], canvaDataset=null, canvaAssetCache={}, editingArticleId=null, editingIssueId=null, editMediaId=null, editingCampaignId=null, editingSocialId=null;
 const roleRank={editor:10,reviewer:20,admin:30,owner:40};
 const canReview=()=>roleRank[me?.role]>=20, canAdmin=()=>roleRank[me?.role]>=30;
 const categoryLabel=s=>({aesthetics:'美學觀點','healthy-aging':'健康老化',longevity:'長壽科學'})[s]||s;
@@ -15,12 +15,13 @@ async function api(path,opt={}){
   return t;
 }
 function toast(m){const el=$('#toast');el.textContent=m;el.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>el.style.display='none',4200)}
-const titles={dashboard:'首頁總覽',articles:'文章管理',publish:'發布中心',media:'媒體工作室',newsletter:'電子報工作室',social:'社群發布工作室',system:'系統與權限'};
+const titles={dashboard:'首頁總覽',articles:'文章管理',issues:'刊物管理',publish:'發布中心',media:'媒體工作室',newsletter:'電子報工作室',social:'社群發布工作室',system:'系統與權限'};
 function show(v){
   $$('.view').forEach(x=>x.classList.toggle('active',x.dataset.view===v));
   $$('#studioMenu button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));
   $('#viewTitle').textContent=titles[v]||'VINCENT STUDIO';
   if(v==='articles')loadArticles();
+  if(v==='issues')loadIssues();
   if(v==='publish')loadPublish();
   if(v==='media')loadMedia();
   if(v==='newsletter')loadNewsletter();
@@ -151,6 +152,100 @@ $('#newArticleBtn').onclick=()=>openArticleEditor();
 $('#cancelArticleBtn').onclick=closeArticleEditor;
 $('#reloadArticles').onclick=loadArticles;
 $('#saveArticleBtn').onclick=saveArticle;
+
+function issueActionButtons(issue){
+  const out=[];
+  const editable=issue.status!=='archived' && (issue.status!=='published'||canReview());
+  if(editable) out.push(`<button class="btn" data-edit-issue="${e(issue.id)}">編輯</button>`);
+  if(issue.status==='draft') out.push(`<button class="btn" data-issue-action="submit" data-id="${e(issue.id)}">送審</button>`);
+  if(canReview()&&issue.status==='in_review'){
+    out.push(`<button class="btn primary" data-issue-action="approve" data-id="${e(issue.id)}">核准</button>`);
+    out.push(`<button class="btn" data-issue-action="reject" data-id="${e(issue.id)}">退回</button>`);
+  }
+  if(canReview()&&issue.status==='approved'){
+    out.push(`<button class="btn primary" data-issue-action="publish" data-id="${e(issue.id)}">發布</button>`);
+    out.push(`<button class="btn" data-issue-action="reject" data-id="${e(issue.id)}">退回</button>`);
+  }
+  if(canAdmin()&&issue.status==='published') out.push(`<button class="btn" data-issue-action="archive" data-id="${e(issue.id)}">封存</button>`);
+  return out.join('');
+}
+function refreshIssueCoverStory(selected='',cover=''){
+  const select=$('#issueCoverStory');
+  const ids=new Set([...$('#issueArticles').selectedOptions].map(o=>o.value));
+  select.innerHTML='<option value="">尚未指定</option>'+articlesCache.filter(a=>ids.has(a.id)).map(a=>`<option value="${e(a.id)}">${e(a.title)}</option>`).join('');
+  if(cover&&ids.has(cover))select.value=cover;
+  else if(selected&&ids.has(selected))select.value=selected;
+}
+function resetIssueEditor(){
+  editingIssueId=null;
+  $('#issueEditor').hidden=true;
+  $('#issueVolume').value='';$('#issueSlug').value='';$('#issueTitle').value='';$('#issueSubtitle').value='';$('#issueEditorNote').value='';
+  $('#issueEditorMode').textContent='';
+}
+async function openIssueEditor(id=null){
+  try{
+    const [arts]=await Promise.all([api('/studio/api/admin/articles'),fetchMedia()]);
+    articlesCache=arts.articles||[];
+    editingIssueId=id;
+    const row=id?issuesCache.find(x=>x.id===id):null;
+    $('#issueVolume').value=row?.volume||'';
+    $('#issueSlug').value=row?.slug||'';
+    $('#issueTitle').value=row?.title||'';
+    $('#issueSubtitle').value=row?.subtitle||'';
+    $('#issueEditorNote').value=row?.editor_note||'';
+    fillMediaSelect($('#issueCover'),row?.cover_media_id||'');
+    $('#issueArticles').innerHTML=articlesCache.map(a=>`<option value="${e(a.id)}">${e(a.title)} · ${e(statusLabel(a.status))}</option>`).join('');
+    let selectedIds=[],coverStory='';
+    if(id){
+      const d=await api('/studio/api/admin/issues/'+id+'/articles');
+      selectedIds=(d.articles||[]).map(x=>x.article_id);
+      coverStory=(d.articles||[]).find(x=>x.is_cover_story)?.article_id||'';
+    }
+    const selected=new Set(selectedIds);[...$('#issueArticles').options].forEach(o=>o.selected=selected.has(o.value));
+    refreshIssueCoverStory('',coverStory);
+    $('#issueEditorMode').textContent=row?(`正在編輯 VOL. ${String(row.volume).padStart(3,'0')} · ${statusLabel(row.status)}`+(row.status!=='draft'?' · 儲存修改後會回到草稿並重新送審':'')):'建立新刊物草稿';
+    $('#issueEditor').hidden=false;$('#issueEditor').scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(err){toast(err.message)}
+}
+async function saveIssue(submit){
+  try{
+    const articleIds=[...$('#issueArticles').selectedOptions].map(o=>o.value);
+    const payload={title:$('#issueTitle').value,subtitle:$('#issueSubtitle').value,editor_note:$('#issueEditorNote').value,cover_media_id:$('#issueCover').value||null};
+    if($('#issueVolume').value)payload.volume=Number($('#issueVolume').value);
+    if($('#issueSlug').value)payload.slug=$('#issueSlug').value;
+    let id=editingIssueId;
+    if(id) await api('/studio/api/admin/issues/'+id,{method:'PATCH',body:JSON.stringify(payload)});
+    else {const d=await api('/studio/api/admin/issues',{method:'POST',body:JSON.stringify(payload)});id=d.issue.id;}
+    await api('/studio/api/admin/issues/'+id+'/articles',{method:'PUT',body:JSON.stringify({article_ids:articleIds,cover_story_id:$('#issueCoverStory').value||null})});
+    if(submit) await api('/studio/api/admin/issues/'+id+'/submit',{method:'POST',body:'{}'});
+    toast(submit?'刊物已儲存並送審':'刊物草稿已儲存');
+    resetIssueEditor();await loadIssues();
+  }catch(err){toast(err.message)}
+}
+async function runIssueAction(id,action){
+  try{
+    await api('/studio/api/admin/issues/'+id+'/'+action,{method:'POST',body:'{}'});
+    toast(({submit:'刊物已送審',approve:'刊物已核准',reject:'刊物已退回草稿',publish:'刊物已發布',archive:'刊物已封存'})[action]||'刊物狀態已更新');
+    await Promise.all([loadIssues(),loadPublish()]);
+  }catch(err){toast(err.message)}
+}
+function bindIssueActions(root=document){
+  root.querySelectorAll?.('[data-issue-action]').forEach(b=>b.onclick=()=>runIssueAction(b.dataset.id,b.dataset.issueAction));
+  root.querySelectorAll?.('[data-edit-issue]').forEach(b=>b.onclick=()=>openIssueEditor(b.dataset.editIssue));
+}
+async function loadIssues(){
+  try{
+    const d=await api('/studio/api/admin/issues');issuesCache=d.issues||[];
+    $('#issuesTable').innerHTML=issuesCache.length?`<table class="table"><thead><tr><th>期數</th><th>標題</th><th>文章</th><th>狀態</th><th>更新</th><th>操作</th></tr></thead><tbody>${issuesCache.map(x=>`<tr><td>VOL. ${String(x.volume).padStart(3,'0')}</td><td><strong>${e(x.title)}</strong><div class="meta">/${e(x.slug)}</div></td><td>${e(x.article_count||0)}</td><td><span class="badge ${x.status==='published'?'':'warn'}">${e(statusLabel(x.status))}</span></td><td>${e((x.updated_at||'').slice(0,10))}</td><td><div class="studio-actions">${issueActionButtons(x)}</div></td></tr>`).join('')}</tbody></table>`:'<p class="empty-state">目前沒有刊物。</p>';
+    bindIssueActions($('#issuesTable'));
+  }catch(err){toast(err.message)}
+}
+$('#newIssueBtn').onclick=()=>openIssueEditor();
+$('#reloadIssues').onclick=loadIssues;
+$('#saveIssueDraftBtn').onclick=()=>saveIssue(false);
+$('#submitIssueBtn').onclick=()=>saveIssue(true);
+$('#cancelIssueEditBtn').onclick=resetIssueEditor;
+$('#issueArticles').onchange=()=>refreshIssueCoverStory($('#issueCoverStory').value);
 
 function mediaUrl(m){return m.visibility==='public'&&m.public_url?m.public_url:'/studio/media/'+encodeURIComponent(m.id)}
 function renderMedia(){

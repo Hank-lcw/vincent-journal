@@ -46,7 +46,7 @@ https://YOUR_DOMAIN/api/oauth/canva/callback
 - QUOTE
 - CAPTION
 
-Autofill 永遠建立新 design，不覆蓋母版。
+Autofill 永遠建立新 design，不覆蓋母版。Studio 可搜尋 `dataset=non_empty` Brand Template、讀取欄位、將公開 R2 素材先匯入 Canva，再建立新 design。
 
 ## 小紅書
 預設流程：

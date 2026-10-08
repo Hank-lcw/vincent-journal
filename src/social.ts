@@ -7,6 +7,23 @@ import { nowIso, safeJson, uuid } from './utils';
 
 const platforms=new Set(['instagram','facebook','threads','xiaohongshu']);
 
+function normalizeMediaIds(value:any):string[]{
+  if(value===undefined||value===null) return [];
+  if(!Array.isArray(value)) throw new HttpError(400,'media_ids 必須是陣列');
+  const ids=[...new Set(value.map((x:any)=>String(x).trim()).filter(Boolean))];
+  if(ids.length>10) throw new HttpError(400,'單篇社群貼文最多使用 10 個媒體');
+  return ids;
+}
+function normalizeScheduledAt(value:any):string|null{
+  if(value===undefined||value===null||value==='') return null;
+  const d=new Date(String(value)); if(Number.isNaN(d.getTime())) throw new HttpError(400,'scheduled_at 格式無效');
+  return d.toISOString();
+}
+function validateSocialForReview(platform:string,title:string,copy:string,mediaIds:string[]):void{
+  if(!String(copy||title||'').trim()) throw new HttpError(409,'送審前請先完成貼文文字');
+  if(platform==='instagram' && !mediaIds.length) throw new HttpError(409,'Instagram 貼文送審前至少需要一張圖片');
+}
+
 export async function listSocialDrafts(env:Env,user:AuthUser):Promise<any[]> {
   requireRole(user,'editor');
   const {results}=await env.DB.prepare(`SELECT s.*,a.title article_title FROM social_drafts s LEFT JOIN articles a ON a.id=s.article_id ORDER BY s.updated_at DESC LIMIT 500`).all<any>();
@@ -80,9 +97,12 @@ hashtags 可為空陣列；copy 若需要 hashtag，請把適量標籤自然附�
 export async function createSocialDraft(env:Env,request:Request,user:AuthUser,input:any):Promise<any>{
   requireRole(user,'editor');
   const platform=String(input.platform||''); if(!platforms.has(platform)) throw new HttpError(400,'不支援的社群平台');
-  const id=uuid(),now=nowIso(),status=input.submit_for_review?'in_review':'draft';
+  const title=String(input.title||'').slice(0,250), copy=String(input.copy||'').slice(0,12000);
+  const mediaIds=normalizeMediaIds(input.media_ids), scheduledAt=normalizeScheduledAt(input.scheduled_at);
+  const status=input.submit_for_review?'in_review':'draft'; if(status==='in_review') validateSocialForReview(platform,title,copy,mediaIds);
+  const id=uuid(),now=nowIso();
   await env.DB.prepare(`INSERT INTO social_drafts (id,article_id,issue_id,platform,format,title,copy,media_ids_json,canva_design_id,status,scheduled_at,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .bind(id,input.article_id||null,input.issue_id||null,platform,String(input.format||'post').slice(0,80),String(input.title||'').slice(0,250),String(input.copy||''),JSON.stringify(Array.isArray(input.media_ids)?input.media_ids:[]),input.canva_design_id||null,status,input.scheduled_at||null,user.id,now,now).run();
+    .bind(id,input.article_id||null,input.issue_id||null,platform,String(input.format||'post').slice(0,80),title,copy,JSON.stringify(mediaIds),input.canva_design_id||null,status,scheduledAt,user.id,now,now).run();
   if(status==='in_review') await env.DB.prepare(`INSERT INTO approvals (id,entity_type,entity_id,action,note,actor_id,created_at) VALUES (?,'social',?,'submit',?,?,?)`).bind(uuid(),id,String(input.note||''),user.id,now).run();
   await audit(env,request,user,'social.create','social',id,{platform,status});
   return env.DB.prepare(`SELECT * FROM social_drafts WHERE id=?`).bind(id).first();
@@ -92,7 +112,8 @@ export async function updateSocialDraft(env:Env,request:Request,user:AuthUser,id
   if(!['draft','in_review'].includes(row.status)) throw new HttpError(409,'只有草稿或審核中的貼文可編輯');
   const platform=input.platform!==undefined?String(input.platform):row.platform;
   if(!platforms.has(platform)) throw new HttpError(400,'不支援的社群平台');
-  if(input.media_ids!==undefined && !Array.isArray(input.media_ids)) throw new HttpError(400,'media_ids 必須是陣列');
+  const mediaIds=input.media_ids!==undefined?normalizeMediaIds(input.media_ids):safeJson<string[]>(row.media_ids_json,[]);
+  const scheduledAt=input.scheduled_at!==undefined?normalizeScheduledAt(input.scheduled_at):row.scheduled_at;
   const nextStatus=row.status==='in_review'?'draft':row.status;
   await env.DB.prepare(`UPDATE social_drafts SET article_id=?,issue_id=?,platform=?,format=?,title=?,copy=?,media_ids_json=?,scheduled_at=?,status=?,approved_by=NULL,updated_at=? WHERE id=?`)
     .bind(
@@ -102,8 +123,8 @@ export async function updateSocialDraft(env:Env,request:Request,user:AuthUser,id
       input.format!==undefined?String(input.format).slice(0,80):row.format,
       input.title!==undefined?String(input.title).slice(0,250):row.title,
       input.copy!==undefined?String(input.copy).slice(0,12000):row.copy,
-      input.media_ids!==undefined?JSON.stringify(input.media_ids):row.media_ids_json,
-      input.scheduled_at!==undefined?(input.scheduled_at||null):row.scheduled_at,
+      JSON.stringify(mediaIds),
+      scheduledAt,
       nextStatus,nowIso(),id
     ).run();
   await audit(env,request,user,'social.update','social',id,{previous_status:row.status,next_status:nextStatus});
@@ -112,9 +133,8 @@ export async function updateSocialDraft(env:Env,request:Request,user:AuthUser,id
 export async function submitSocialDraft(env:Env,request:Request,user:AuthUser,id:string,note=''):Promise<any>{
   requireRole(user,'editor'); const row=await env.DB.prepare(`SELECT * FROM social_drafts WHERE id=?`).bind(id).first<any>(); if(!row) throw new HttpError(404,'找不到社群草稿');
   if(row.status!=='draft') throw new HttpError(409,'只有草稿可送審');
-  if(!String(row.copy||row.title||'').trim()) throw new HttpError(409,'送審前請先完成貼文文字');
   const mediaIds=safeJson<string[]>(row.media_ids_json,[]);
-  if(row.platform==='instagram' && !mediaIds.length) throw new HttpError(409,'Instagram 貼文送審前至少需要一張圖片');
+  validateSocialForReview(row.platform,row.title,row.copy,mediaIds);
   await env.DB.prepare(`UPDATE social_drafts SET status='in_review',updated_at=? WHERE id=?`).bind(nowIso(),id).run();
   await env.DB.prepare(`INSERT INTO approvals (id,entity_type,entity_id,action,note,actor_id,created_at) VALUES (?,'social',?,'submit',?,?,?)`).bind(uuid(),id,note,user.id,nowIso()).run();
   await audit(env,request,user,'social.submit','social',id,{note}); return env.DB.prepare(`SELECT * FROM social_drafts WHERE id=?`).bind(id).first();

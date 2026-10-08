@@ -893,11 +893,13 @@ function campaignActions(c){
 }
 function resetCampaignEditor(){
   editingCampaignId=null;
+  $('#campaignArticle').value='';
   $('#campaignSubject').value='';
   $('#campaignPreview').value='';
   $('#campaignHtml').value='';
   $('#campaignText').value='';
   $('#campaignSchedule').value='';
+  $('#campaignAiBrief').value='';
   $('#campaignEditorTitle').textContent='建立新一期';
   $('#saveCampaignDraftBtn').textContent='儲存草稿';
   $('#submitCampaignBtn').textContent='儲存並送審';
@@ -907,6 +909,7 @@ function openCampaignEditor(id){
   const row=campaignsCache.find(x=>x.id===id); if(!row) return toast('找不到電子報草稿');
   if(!['draft','in_review'].includes(row.status)) return toast('這份電子報目前不可編輯');
   editingCampaignId=id;
+  $('#campaignArticle').value=row.article_id||'';
   $('#campaignSubject').value=row.subject||'';
   $('#campaignPreview').value=row.preview_text||'';
   $('#campaignHtml').value=row.html||'';
@@ -919,7 +922,7 @@ function openCampaignEditor(id){
   $('#campaignEditorPanel').scrollIntoView({behavior:'smooth',block:'start'});
 }
 async function saveCampaign(submit){
-  const scheduleRaw=$('#campaignSchedule').value;const scheduledAt=scheduleRaw?new Date(scheduleRaw).toISOString():null;const payload={subject:$('#campaignSubject').value,preview_text:$('#campaignPreview').value,html:$('#campaignHtml').value,text_body:$('#campaignText').value,scheduled_at:scheduledAt};
+  const scheduleRaw=$('#campaignSchedule').value;const scheduledAt=scheduleRaw?new Date(scheduleRaw).toISOString():null;const payload={article_id:$('#campaignArticle').value||null,subject:$('#campaignSubject').value,preview_text:$('#campaignPreview').value,html:$('#campaignHtml').value,text_body:$('#campaignText').value,scheduled_at:scheduledAt};
   try{
     if(editingCampaignId){
       await api('/studio/api/admin/newsletter/campaigns/'+editingCampaignId,{method:'PATCH',body:JSON.stringify(payload)});
@@ -941,19 +944,64 @@ async function campaignAction(id,action){
 }
 function renderCampaigns(list){
   campaignsCache=list;
-  $('#campaignList').innerHTML=list.length?list.map(c=>`<div class="campaign-row"><div><strong>${e(c.subject)}</strong><div class="meta">${e(statusLabel(c.status))} · ${e((c.updated_at||c.created_at||'').slice(0,16))}${c.scheduled_at?' · 排程 '+e(String(c.scheduled_at).slice(0,16)):''}</div></div><div class="studio-actions">${campaignActions(c)}</div></div>`).join(''):'<p class="empty-state">目前沒有電子報草稿。</p>';
+  $('#campaignList').innerHTML=list.length?list.map(c=>`<div class="campaign-row"><div><strong>${e(c.subject)}</strong><div class="meta">${c.auto_send?'<span class="badge">文章自動通知</span> · ':''}${e(statusLabel(c.status))} · ${e((c.updated_at||c.created_at||'').slice(0,16))}${c.scheduled_at?' · 排程 '+e(String(c.scheduled_at).slice(0,16)):''}</div></div><div class="studio-actions">${campaignActions(c)}</div></div>`).join(''):'<p class="empty-state">目前沒有電子報草稿。</p>';
   $$('[data-campaign-action]').forEach(b=>b.onclick=()=>campaignAction(b.dataset.id,b.dataset.campaignAction));
   $$('[data-campaign-edit]').forEach(b=>b.onclick=()=>openCampaignEditor(b.dataset.campaignEdit));
 }
+function fillCampaignArticleSelect(){
+  const select=$('#campaignArticle');if(!select)return;
+  const current=select.value;
+  select.innerHTML='<option value="">不綁定文章</option>'+articlesCache.map(a=>`<option value="${e(a.id)}">${e(a.title)} · ${e(statusLabel(a.status))}</option>`).join('');
+  if([...select.options].some(o=>o.value===current))select.value=current;
+}
+function renderNewsletterDeliveryStatus(status){
+  const root=$('#newsletterDeliveryStatus');if(!root)return;
+  const domain=status?.email_domain||{};
+  const resend=Boolean(status?.configured?.resend);
+  const segmentReady=Boolean(status?.newsletter_segment_ready);
+  const verified=domain?.configured&&String(domain?.status||'').toLowerCase()==='verified';
+  const rows=[
+    ['Resend API',resend?'已設定':'待設定',resend],
+    ['寄件網域',verified?('已驗證 · '+(domain.domain||'')):(domain.domain?((domain.status||'待驗證')+' · '+domain.domain):(domain.reason||'尚未設定')),verified],
+    ['寄送名單 Segment',segmentReady?'已設定':'待設定',segmentReady],
+    ['文章更新自動寄送',resend&&verified&&segmentReady?'啟用':'等待寄件設定完成',resend&&verified&&segmentReady]
+  ];
+  root.innerHTML='<div class="meta">DELIVERY READINESS</div>'+rows.map(([label,value,ok])=>`<div class="status-row"><span>${e(label)}</span><span class="badge ${ok?'':'warn'}">${e(value)}</span></div>`).join('')+
+    (!verified?'<p class="form-note">確認信與正式電子報都必須先完成 Resend 寄件網域驗證。完成 DNS 驗證後，系統會自動開始處理待寄送的文章通知。</p>':'');
+}
+async function generateCampaignContent(){
+  const articleId=$('#campaignArticle').value;
+  const brief=$('#campaignAiBrief').value.trim();
+  if(!articleId&&!brief)return toast('請先選擇來源文章，或輸入 AI 編輯方向');
+  const btn=$('#generateCampaignBtn'),old=btn.textContent;btn.disabled=true;btn.textContent='AI 生成中…';
+  try{
+    const d=await api('/studio/api/admin/newsletter/generate',{method:'POST',body:JSON.stringify({article_id:articleId||null,brief})});
+    if(d.article_id)$('#campaignArticle').value=d.article_id;
+    $('#campaignSubject').value=d.subject||'';
+    $('#campaignPreview').value=d.preview_text||'';
+    $('#campaignHtml').value=d.html||'';
+    $('#campaignText').value=d.text_body||'';
+    toast('電子報內容已生成，寄出前請人工確認');
+  }catch(err){toast(err.message)}
+  finally{btn.disabled=false;btn.textContent=old}
+}
+
 async function loadNewsletter(){
   try{
-    const [subs,camps]=await Promise.all([canAdmin()?api('/studio/api/admin/newsletter/subscribers'):Promise.resolve({subscribers:[]}),api('/studio/api/admin/newsletter/campaigns')]);
+    const [subs,camps,arts,status]=await Promise.all([
+      canAdmin()?api('/studio/api/admin/newsletter/subscribers'):Promise.resolve({subscribers:[]}),
+      api('/studio/api/admin/newsletter/campaigns'),
+      api('/studio/api/admin/articles'),
+      api('/studio/api/admin/system/status')
+    ]);
+    articlesCache=arts.articles||articlesCache;fillCampaignArticleSelect();renderNewsletterDeliveryStatus(status);
     const s=subs.subscribers||[];
     for(const st of ['active','pending','unsubscribed','suppressed']){const id={active:'activeSubs',pending:'pendingSubs',unsubscribed:'unsubSubs',suppressed:'suppressedSubs'}[st];$('#'+id).textContent=canAdmin()?s.filter(x=>x.status===st).length:'—'}
     $('#newsletterTable').innerHTML=canAdmin()?`<table class="table"><thead><tr><th>Email</th><th>狀態</th><th>來源</th><th>加入時間</th></tr></thead><tbody>${s.slice(0,200).map(x=>`<tr><td>${e(x.email)}</td><td>${e(statusLabel(x.status))}</td><td>${e(x.source)}</td><td>${e((x.created_at||'').slice(0,16))}</td></tr>`).join('')}</tbody></table>`:'<p class="empty-state">訂閱者個資僅 Owner／Admin 可查看。</p>';
     renderCampaigns(camps.campaigns||[]);
   }catch(err){toast(err.message)}
 }
+$('#generateCampaignBtn').onclick=generateCampaignContent;
 $('#saveCampaignDraftBtn').onclick=()=>saveCampaign(false);
 $('#submitCampaignBtn').onclick=()=>saveCampaign(true);
 $('#cancelCampaignEditBtn').onclick=resetCampaignEditor;

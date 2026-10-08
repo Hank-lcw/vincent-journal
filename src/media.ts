@@ -27,10 +27,6 @@ export async function uploadMedia(env: Env, request: Request, user: AuthUser): P
     httpMetadata: { contentType: file.type, cacheControl: visibility === 'public' ? 'public,max-age=31536000,immutable' : 'private,no-store' },
     customMetadata: { source: 'upload', originalFilename: file.name.slice(0,200) }
   });
-  if (visibility === 'private') {
-    const articleUse = await env.DB.prepare(`SELECT id,title FROM articles WHERE cover_media_id=? AND status='published' LIMIT 1`).bind(id).first<any>();
-    if (articleUse) throw new HttpError(409,`這張圖片正被已發布文章「${articleUse.title}」使用，不能改為私人`);
-  }
   const publicUrl = visibility === 'public' ? `${env.PUBLIC_BASE_URL.replace(/\/$/,'')}/media/${id}` : null;
   await env.DB.prepare(`INSERT INTO media_assets (id,object_key,public_url,filename,mime_type,byte_size,source,visibility,alt_text,tags_json,created_by,created_at) VALUES (?,?,?,?,?,?,'upload',?,?,?,?,?)`)
     .bind(id,key,publicUrl,file.name,file.type,file.size,visibility,alt,JSON.stringify(tags),user.id,nowIso()).run();
@@ -113,6 +109,10 @@ export async function editImage(env: Env, request: Request, user: AuthUser, inpu
 export async function setMediaVisibility(env: Env, request: Request, user: AuthUser, id: string, visibility: 'private'|'public'): Promise<any> {
   const asset = await env.DB.prepare(`SELECT * FROM media_assets WHERE id=?`).bind(id).first<any>();
   if (!asset) throw new HttpError(404,'找不到圖片');
+  if (visibility === 'private') {
+    const articleUse = await env.DB.prepare(`SELECT id,title FROM articles WHERE cover_media_id=? AND status='published' LIMIT 1`).bind(id).first<any>();
+    if (articleUse) throw new HttpError(409,`這張圖片正被已發布文章「${articleUse.title}」使用，不能改為私人`);
+  }
   const publicUrl = visibility === 'public' ? `${env.PUBLIC_BASE_URL.replace(/\/$/,'')}/media/${id}` : null;
   await env.DB.prepare(`UPDATE media_assets SET visibility=?, public_url=? WHERE id=?`).bind(visibility,publicUrl,id).run();
   await audit(env,request,user,'media.visibility','media',id,{visibility});

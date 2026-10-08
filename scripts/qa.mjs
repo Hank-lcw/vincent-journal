@@ -4,11 +4,11 @@ import { spawnSync } from 'node:child_process';
 const fail=(m)=>{console.error('QA FAIL:',m);process.exitCode=1};
 const required=[
   'public/index.html','public/discover.html','public/article.html','public/issue.html','public/studio.html',
-  'public/app.js','public/studio.js','public/styles.css','src/index.ts','wrangler.jsonc','migrations/0001_initial.sql'
+  'public/app.js','public/experience.js','public/studio.js','public/styles.css','public/experience.css','src/index.ts','wrangler.jsonc','migrations/0001_initial.sql'
 ];
 for(const p of required){if(!fs.existsSync(p)||fs.statSync(p).size===0) fail(`missing/empty ${p}`)}
 
-for(const p of ['public/app.js','public/studio.js','public/data.js']){
+for(const p of ['public/app.js','public/experience.js','public/studio.js','public/data.js']){
   const r=spawnSync(process.execPath,['--check',p],{encoding:'utf8'});
   if(r.status!==0) fail(`${p} syntax: ${r.stderr||r.stdout}`);
 }

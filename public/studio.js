@@ -184,6 +184,7 @@ function resetCampaignEditor(){
   $('#campaignPreview').value='';
   $('#campaignHtml').value='';
   $('#campaignText').value='';
+  $('#campaignSchedule').value='';
   $('#campaignEditorTitle').textContent='建立新一期';
   $('#saveCampaignDraftBtn').textContent='儲存草稿';
   $('#submitCampaignBtn').textContent='儲存並送審';
@@ -197,6 +198,7 @@ function openCampaignEditor(id){
   $('#campaignPreview').value=row.preview_text||'';
   $('#campaignHtml').value=row.html||'';
   $('#campaignText').value=row.text_body||'';
+  $('#campaignSchedule').value=localDateTimeValue(row.scheduled_at);
   $('#campaignEditorTitle').textContent='編輯電子報';
   $('#saveCampaignDraftBtn').textContent='儲存修改';
   $('#submitCampaignBtn').textContent='儲存並送審';
@@ -204,7 +206,7 @@ function openCampaignEditor(id){
   $('#campaignEditorPanel').scrollIntoView({behavior:'smooth',block:'start'});
 }
 async function saveCampaign(submit){
-  const payload={subject:$('#campaignSubject').value,preview_text:$('#campaignPreview').value,html:$('#campaignHtml').value,text_body:$('#campaignText').value};
+  const scheduleRaw=$('#campaignSchedule').value;const scheduledAt=scheduleRaw?new Date(scheduleRaw).toISOString():null;const payload={subject:$('#campaignSubject').value,preview_text:$('#campaignPreview').value,html:$('#campaignHtml').value,text_body:$('#campaignText').value,scheduled_at:scheduledAt};
   try{
     if(editingCampaignId){
       await api('/studio/api/admin/newsletter/campaigns/'+editingCampaignId,{method:'PATCH',body:JSON.stringify(payload)});
@@ -219,7 +221,7 @@ async function saveCampaign(submit){
 }
 async function campaignAction(id,action){
   try{
-    await api('/studio/api/admin/newsletter/campaigns/'+id+'/'+action,{method:'POST',body:'{}'});
+    const row=campaignsCache.find(x=>x.id===id);const payload=action==='send'&&row?.scheduled_at?JSON.stringify({scheduled_at:row.scheduled_at}):'{}';await api('/studio/api/admin/newsletter/campaigns/'+id+'/'+action,{method:'POST',body:payload});
     toast(({submit:'電子報已送審',approve:'電子報已核准',reject:'電子報已退回草稿',send:'已送交寄送服務'})[action]||'電子報狀態已更新');
     await loadNewsletter();
   }catch(err){toast(err.message)}

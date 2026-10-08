@@ -246,3 +246,32 @@ body.vj-page-leaving .vj-transition-veil{
   .vj-transition-veil{display:none}
   .hero-media img,.vj-pointer-card img{transform:none!important}
 }
+
+
+/* Opening rhythm: restrained masthead choreography */
+.vj-enhanced .masthead-meta,
+.vj-enhanced .wordmark,
+.vj-enhanced .brand-subtitle,
+.vj-enhanced .site-nav{
+  opacity:0;transform:translateY(5px);
+}
+.vj-page-ready .masthead-meta,
+.vj-page-ready .wordmark,
+.vj-page-ready .brand-subtitle,
+.vj-page-ready .site-nav{
+  opacity:1;transform:translateY(0);
+  transition:opacity .58s var(--vj-ease-out),transform .58s var(--vj-ease-out);
+}
+.vj-page-ready .wordmark{transition-delay:45ms}
+.vj-page-ready .brand-subtitle{transition-delay:80ms}
+.vj-page-ready .site-nav{transition-delay:115ms}
+.site-footer a{transition:color .22s ease,opacity .22s ease}
+.site-footer a:hover{color:var(--olive)}
+.consent input{accent-color:var(--olive)}
+@media(hover:hover) and (pointer:fine){
+  html{scrollbar-color:#c9c5bb transparent}
+  body::-webkit-scrollbar{width:10px}
+  body::-webkit-scrollbar-track{background:transparent}
+  body::-webkit-scrollbar-thumb{background:#cbc7bd;border:3px solid var(--ivory);border-radius:99px}
+  body::-webkit-scrollbar-thumb:hover{background:#aaa69d}
+}

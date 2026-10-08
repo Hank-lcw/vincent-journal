@@ -5,7 +5,7 @@ import { decodeBase64, escapeHtml, hashIp, normalizeEmail, nowIso, randomToken, 
 import { requireRole } from './auth';
 
 async function verifyTurnstile(env: Env, request: Request, token?: string): Promise<void> {
-  if (!env.TURNSTILE_SECRET_KEY) return;
+  if (!env.TURNSTILE_SECRET_KEY || !env.TURNSTILE_SITE_KEY) return;
   if (!token) throw new HttpError(400, '請完成人機驗證');
   const form = new URLSearchParams();
   form.set('secret', env.TURNSTILE_SECRET_KEY);

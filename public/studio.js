@@ -305,16 +305,254 @@ $('#cancelIssueEditBtn').onclick=resetIssueEditor;
 $('#issueArticles').onchange=()=>refreshIssueCoverStory($('#issueCoverStory').value);
 
 function mediaUrl(m){return m.visibility==='public'&&m.public_url?m.public_url:'/studio/media/'+encodeURIComponent(m.id)}
+const mediaPresets={
+  ig45:{label:'Instagram 4:5',slug:'instagram-4x5',w:1080,h:1350},
+  square:{label:'Instagram 1:1',slug:'instagram-1x1',w:1080,h:1080},
+  journal:{label:'Journal 16:9',slug:'journal-16x9',w:1600,h:900}
+};
+let cropSourceId=null,cropPresetKey='ig45',cropImage=null;
+
+function mediaSourceLabel(m){
+  if(m?.metadata?.derivative)return m.metadata.preset==='instagram-4x5'?'IG 4:5':m.metadata.preset==='instagram-1x1'?'IG 1:1':m.metadata.preset==='journal-16x9'?'Journal 16:9':'衍生版本';
+  return ({upload:'上傳',ai_generate:'AI 原圖',ai_edit:'AI 修改',canva:'Canva',import:'衍生'})[m?.source]||m?.source||'素材';
+}
+function mediaUsageCount(m){return Number(m?.article_refs||0)+Number(m?.issue_refs||0)+Number(m?.social_refs||0)}
+function rootMediaId(id){
+  let current=id,guard=0;
+  while(guard++<30){
+    const m=mediaCache.find(x=>x.id===current);
+    if(!m?.parent_media_id)return current;
+    current=m.parent_media_id;
+  }
+  return id;
+}
+function mediaFamily(id){
+  const root=rootMediaId(id);
+  return mediaCache.filter(m=>rootMediaId(m.id)===root).sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||'')));
+}
+function mediaFamilyIndex(m){
+  const fam=mediaFamily(m.id);
+  return Math.max(1,fam.findIndex(x=>x.id===m.id)+1);
+}
 function renderMedia(){
-  $('#mediaGrid').innerHTML=mediaCache.length?mediaCache.map(m=>`<article class="media-card"><img loading="lazy" decoding="async" src="${e(mediaUrl(m))}" alt="${e(m.alt_text||'')}"><div class="media-card-body"><div class="meta">${e(m.source)} · ${m.visibility==='public'?'公開':'私人'}</div><h3>${e(m.filename)}</h3><div class="studio-actions"><button class="btn" data-media-edit="${e(m.id)}">AI 修改</button><button class="btn" data-media-visibility="${e(m.id)}" data-next="${m.visibility==='public'?'private':'public'}">${m.visibility==='public'?'改為私人':'設為公開'}</button></div></div></article>`).join(''):'<p class="empty-state">尚未建立媒體素材。</p>';
-  $$('[data-media-edit]').forEach(b=>b.onclick=()=>{editMediaId=b.dataset.mediaEdit;const m=mediaCache.find(x=>x.id===editMediaId);$('#aiEditSource').textContent='修改來源：'+(m?.filename||editMediaId);$('#aiEditPanel').hidden=false;$('#aiEditPrompt').focus()});
-  $$('[data-media-visibility]').forEach(b=>b.onclick=async()=>{try{await api('/studio/api/admin/media/'+b.dataset.mediaVisibility+'/visibility',{method:'PATCH',body:JSON.stringify({visibility:b.dataset.next})});toast('圖片可見性已更新');await loadMedia(true)}catch(err){toast(err.message)}});
+  $('#mediaGrid').innerHTML=mediaCache.length?mediaCache.map(m=>{
+    const usage=mediaUsageCount(m),children=Number(m.child_count||0),family=mediaFamily(m.id);
+    const locked=usage>0||children>0;
+    const badges=[
+      `<span class="media-chip">${e(mediaSourceLabel(m))}</span>`,
+      `<span class="media-chip">${m.visibility==='public'?'公開':'私人'}</span>`,
+      family.length>1?`<span class="media-chip">V${mediaFamilyIndex(m)} / ${family.length}</span>`:'',
+      usage?`<span class="media-chip media-chip-live">使用中 ${usage}</span>`:'',
+      children?`<span class="media-chip">衍生 ${children}</span>`:''
+    ].join('');
+    return `<article class="media-card" data-media-card="${e(m.id)}">
+      <div class="media-thumb"><img loading="lazy" decoding="async" src="${e(mediaUrl(m))}" alt="${e(m.alt_text||'')}"><div class="media-badges">${badges}</div></div>
+      <div class="media-card-body">
+        <div class="meta">${e((m.created_at||'').slice(0,16).replace('T',' '))}</div>
+        <h3>${e(m.filename)}</h3>
+        <div class="studio-actions">
+          <button class="btn" data-media-tools="${e(m.id)}">裁切／衍生</button>
+          <button class="btn" data-media-edit="${e(m.id)}">AI 修改</button>
+          ${family.length>1?`<button class="btn" data-media-compare="${e(m.id)}">比較版本</button>`:''}
+          <button class="btn" data-media-visibility="${e(m.id)}" data-next="${m.visibility==='public'?'private':'public'}">${m.visibility==='public'?'改為私人':'設為公開'}</button>
+          ${canAdmin()?`<button class="btn danger" data-media-delete="${e(m.id)}" ${locked?'disabled':''} title="${locked?'素材仍被使用或有衍生版本，暫不可刪除':'永久刪除未使用素材'}">刪除</button>`:''}
+        </div>
+      </div>
+    </article>`;
+  }).join(''):'<p class="empty-state">尚未建立媒體素材。</p>';
+
+  $$('[data-media-edit]').forEach(b=>b.onclick=()=>{
+    editMediaId=b.dataset.mediaEdit;
+    const m=mediaCache.find(x=>x.id===editMediaId);
+    $('#aiEditSource').textContent='修改來源：'+(m?.filename||editMediaId);
+    $('#aiEditPanel').hidden=false;
+    $('#aiEditPrompt').focus();
+    $('#aiEditPanel').scrollIntoView({behavior:'smooth',block:'start'});
+  });
+  $$('[data-media-tools]').forEach(b=>b.onclick=()=>openMediaTools(b.dataset.mediaTools,false));
+  $$('[data-media-compare]').forEach(b=>b.onclick=()=>openMediaTools(b.dataset.mediaCompare,true));
+  $$('[data-media-delete]').forEach(b=>b.onclick=()=>deleteMediaFromStudio(b.dataset.mediaDelete));
+  $$('[data-media-visibility]').forEach(b=>b.onclick=async()=>{
+    try{
+      await api('/studio/api/admin/media/'+b.dataset.mediaVisibility+'/visibility',{method:'PATCH',body:JSON.stringify({visibility:b.dataset.next})});
+      toast('圖片可見性已更新');
+      mediaCache=[];
+      await loadMedia(true);
+    }catch(err){toast(err.message)}
+  });
 }
 async function loadMedia(force=false){try{await fetchMedia(force);renderMedia()}catch(err){toast(err.message)}}
-$('#uploadMediaBtn').onclick=async()=>{const file=$('#mediaFile').files[0];if(!file)return toast('請先選擇圖片');const fd=new FormData();fd.append('file',file);fd.append('alt_text',$('#mediaAlt').value);try{await api('/studio/api/admin/media/upload',{method:'POST',body:fd});toast('圖片已上傳');$('#mediaFile').value='';mediaCache=[];await loadMedia(true)}catch(err){toast(err.message)}};
-$('#generateImageBtn').onclick=async()=>{try{toast('正在生成圖片…');await api('/studio/api/admin/media/generate',{method:'POST',body:JSON.stringify({prompt:$('#aiPrompt').value,size:'1536x1024'})});toast('AI 圖片已建立');mediaCache=[];await loadMedia(true)}catch(err){toast(err.message)}};
-$('#editImageBtn').onclick=async()=>{if(!editMediaId)return toast('請先選擇圖片');try{toast('正在建立修改版本…');await api('/studio/api/admin/media/edit',{method:'POST',body:JSON.stringify({media_id:editMediaId,prompt:$('#aiEditPrompt').value})});toast('修改版本已建立');$('#aiEditPanel').hidden=true;$('#aiEditPrompt').value='';editMediaId=null;mediaCache=[];await loadMedia(true)}catch(err){toast(err.message)}};
+
+async function deleteMediaFromStudio(id){
+  const m=mediaCache.find(x=>x.id===id); if(!m)return;
+  if(mediaUsageCount(m)>0)return toast('這張素材仍被文章、刊物或社群草稿使用，不能刪除');
+  if(Number(m.child_count||0)>0)return toast('這張素材仍有衍生版本，請先刪除衍生版本');
+  const versionNote=m.parent_media_id?'\n\n這是衍生版本；原圖會保留。':'';
+  if(!window.confirm(`確定永久刪除「${m.filename}」？\n\nR2 圖檔與素材紀錄都會刪除，且無法復原。${versionNote}`))return;
+  try{
+    await api('/studio/api/admin/media/'+id,{method:'DELETE'});
+    if(cropSourceId===id)closeMediaTools();
+    toast('素材已刪除');
+    mediaCache=[];
+    await Promise.all([loadMedia(true),loadStatus()]);
+  }catch(err){toast(err.message)}
+}
+
+$('#uploadMediaBtn').onclick=async()=>{
+  const file=$('#mediaFile').files[0];if(!file)return toast('請先選擇圖片');
+  const fd=new FormData();fd.append('file',file);fd.append('alt_text',$('#mediaAlt').value);
+  try{
+    await api('/studio/api/admin/media/upload',{method:'POST',body:fd});
+    toast('圖片已上傳');$('#mediaFile').value='';mediaCache=[];await loadMedia(true);
+  }catch(err){toast(err.message)}
+};
+$('#generateImageBtn').onclick=async()=>{
+  try{
+    toast('正在生成圖片…');
+    await api('/studio/api/admin/media/generate',{method:'POST',body:JSON.stringify({prompt:$('#aiPrompt').value,size:'1536x1024'})});
+    toast('AI 圖片已建立');mediaCache=[];await loadMedia(true);
+  }catch(err){toast(err.message)}
+};
+$('#editImageBtn').onclick=async()=>{
+  if(!editMediaId)return toast('請先選擇圖片');
+  try{
+    toast('正在建立修改版本…');
+    await api('/studio/api/admin/media/edit',{method:'POST',body:JSON.stringify({media_id:editMediaId,prompt:$('#aiEditPrompt').value})});
+    toast('修改版本已建立');$('#aiEditPanel').hidden=true;$('#aiEditPrompt').value='';editMediaId=null;mediaCache=[];await loadMedia(true);
+  }catch(err){toast(err.message)}
+};
 $('#cancelEditImageBtn').onclick=()=>{$('#aiEditPanel').hidden=true;editMediaId=null};
+$('#reloadMediaBtn').onclick=()=>loadMedia(true);
+
+function cropRect(img,preset){
+  const ratio=preset.w/preset.h;
+  const iw=img.naturalWidth,ih=img.naturalHeight;
+  let cw=iw,ch=cw/ratio;
+  if(ch>ih){ch=ih;cw=ch*ratio}
+  const zoom=Math.max(1,Number($('#cropZoom').value||100)/100);
+  cw/=zoom;ch/=zoom;
+  const px=Number($('#cropX').value||50)/100,py=Number($('#cropY').value||50)/100;
+  return {sx:(iw-cw)*px,sy:(ih-ch)*py,sw:cw,sh:ch,zoom,px,py};
+}
+function drawCropTo(canvas,preset,outW,outH){
+  if(!cropImage?.naturalWidth)return;
+  canvas.width=outW;canvas.height=outH;
+  const ctx=canvas.getContext('2d',{alpha:false});
+  const r=cropRect(cropImage,preset);
+  ctx.fillStyle='#eeeae1';ctx.fillRect(0,0,outW,outH);
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  ctx.drawImage(cropImage,r.sx,r.sy,r.sw,r.sh,0,0,outW,outH);
+}
+function renderCropPreview(){
+  const p=mediaPresets[cropPresetKey];if(!p||!cropImage)return;
+  const maxW=720,maxH=720;
+  let w=maxW,h=Math.round(w*p.h/p.w);
+  if(h>maxH){h=maxH;w=Math.round(h*p.w/p.h)}
+  drawCropTo($('#cropCanvas'),p,w,h);
+  $('#cropXOut').textContent=$('#cropX').value;
+  $('#cropYOut').textContent=$('#cropY').value;
+  $('#cropZoomOut').textContent=(Number($('#cropZoom').value)/100).toFixed(2)+'×';
+  $$('.ratio-option').forEach(b=>b.classList.toggle('active',b.dataset.preset===cropPresetKey));
+  $('#derivePresetBtn').textContent='建立 '+p.label+' 版本';
+}
+function loadCropImage(m){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>{cropImage=img;resolve(img)};
+    img.onerror=()=>reject(new Error('裁切來源圖片載入失敗'));
+    img.src=mediaUrl(m)+(mediaUrl(m).includes('?')?'&':'?')+'crop='+Date.now();
+  });
+}
+async function openMediaTools(id,focusCompare=false){
+  const m=mediaCache.find(x=>x.id===id);if(!m)return toast('找不到素材');
+  cropSourceId=id;cropPresetKey='ig45';
+  $('#cropX').value='50';$('#cropY').value='50';$('#cropZoom').value='100';
+  $('#mediaToolTitle').textContent=m.filename;
+  $('#mediaToolMeta').textContent=`${mediaSourceLabel(m)} · 素材家族 ${mediaFamily(m.id).length} 個版本`;
+  $('#mediaToolPanel').hidden=false;
+  try{await loadCropImage(m);renderCropPreview();populateCompare(id)}
+  catch(err){toast(err.message)}
+  $('#mediaToolPanel').scrollIntoView({behavior:'smooth',block:'start'});
+  if(focusCompare)setTimeout(()=>$('#compareLeft')?.scrollIntoView({behavior:'smooth',block:'center'}),250);
+}
+function closeMediaTools(){cropSourceId=null;cropImage=null;$('#mediaToolPanel').hidden=true}
+$('#closeMediaToolsBtn').onclick=closeMediaTools;
+$$('.ratio-option').forEach(b=>b.onclick=()=>{cropPresetKey=b.dataset.preset;renderCropPreview()});
+['cropX','cropY','cropZoom'].forEach(id=>$('#'+id).oninput=renderCropPreview);
+
+function canvasBlob(canvas,type='image/webp',quality=.94){
+  return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('圖片輸出失敗')),type,quality));
+}
+async function createDerivative(presetKey,quiet=false){
+  const source=mediaCache.find(x=>x.id===cropSourceId);
+  const preset=mediaPresets[presetKey];
+  if(!source||!preset||!cropImage)throw new Error('請先選擇來源素材');
+  const out=document.createElement('canvas');
+  drawCropTo(out,preset,preset.w,preset.h);
+  const blob=await canvasBlob(out);
+  const base=(source.filename||'vincent').replace(/\.[^.]+$/,'').slice(0,120);
+  const filename=`${base}--${preset.slug}.webp`;
+  const r=cropRect(cropImage,preset);
+  const fd=new FormData();
+  fd.append('file',new File([blob],filename,{type:'image/webp'}));
+  fd.append('alt_text',source.alt_text||'');
+  fd.append('parent_media_id',source.id);
+  fd.append('preset',preset.slug);
+  fd.append('crop_json',JSON.stringify({x:Number($('#cropX').value),y:Number($('#cropY').value),zoom:Number($('#cropZoom').value)/100,source_px:{x:Math.round(r.sx),y:Math.round(r.sy),w:Math.round(r.sw),h:Math.round(r.sh)},output:{w:preset.w,h:preset.h}}));
+  await api('/studio/api/admin/media/upload',{method:'POST',body:fd});
+  if(!quiet)toast(preset.label+' 版本已建立');
+}
+$('#derivePresetBtn').onclick=async()=>{
+  const btn=$('#derivePresetBtn'),old=btn.textContent;btn.disabled=true;btn.textContent='輸出中…';
+  try{
+    await createDerivative(cropPresetKey);
+    mediaCache=[];await loadMedia(true);populateCompare(cropSourceId);
+  }catch(err){toast(err.message)}
+  finally{btn.disabled=false;btn.textContent=old;renderCropPreview()}
+};
+$('#deriveAllBtn').onclick=async()=>{
+  const btn=$('#deriveAllBtn'),old=btn.textContent;btn.disabled=true;btn.textContent='建立 1 / 3…';
+  try{
+    const keys=['ig45','square','journal'];
+    for(let i=0;i<keys.length;i++){btn.textContent=`建立 ${i+1} / 3…`;await createDerivative(keys[i],true)}
+    toast('已建立 Instagram 4:5、1:1 與 Journal 橫幅三個版本');
+    mediaCache=[];await loadMedia(true);populateCompare(cropSourceId);
+  }catch(err){toast(err.message)}
+  finally{btn.disabled=false;btn.textContent=old}
+};
+
+function compareOptionLabel(m){return `V${mediaFamilyIndex(m)} · ${mediaSourceLabel(m)} · ${m.filename}`}
+function populateCompare(id){
+  const fam=mediaFamily(id);
+  const left=$('#compareLeft'),right=$('#compareRight');
+  left.innerHTML=fam.map(m=>`<option value="${e(m.id)}">${e(compareOptionLabel(m))}</option>`).join('');
+  right.innerHTML=left.innerHTML;
+  const root=rootMediaId(id);
+  left.value=root;
+  right.value=(id!==root?id:(fam[fam.length-1]?.id||root));
+  const empty=fam.length<2;
+  $('#compareEmpty').hidden=!empty;
+  $('#compareStage').hidden=empty;
+  $('.compare-range').hidden=empty;
+  left.disabled=empty;right.disabled=empty;
+  if(!empty)renderCompare();
+}
+function renderCompare(){
+  const a=mediaCache.find(x=>x.id===$('#compareLeft').value),b=mediaCache.find(x=>x.id===$('#compareRight').value);
+  if(!a||!b)return;
+  $('#compareLeftImg').src=mediaUrl(a);
+  $('#compareRightImg').src=mediaUrl(b);
+  updateCompareSlider();
+}
+function updateCompareSlider(){
+  const v=Number($('#compareSlider').value||50);
+  $('#compareRightClip').style.clipPath=`inset(0 0 0 ${v}%)`;
+  $('#compareDivider').style.left=v+'%';
+  $('#compareOut').textContent=v+'%';
+}
+$('#compareLeft').onchange=renderCompare;
+$('#compareRight').onchange=renderCompare;
+$('#compareSlider').oninput=updateCompareSlider;
 
 function campaignActions(c){
   const out=[];

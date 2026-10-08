@@ -11,6 +11,7 @@ import { listSocialDrafts, createSocialDraft, updateSocialDraft, submitSocialDra
 import { listBackups, manualBackup, createBackup } from './backup';
 import { listAdminIssues, getIssueArticlesAdmin, createIssue, updateIssue, setIssueArticles, transitionIssue, listPublicIssues, getPublicIssue } from './issues';
 import { runDueJobs } from './jobs';
+import { checkOpenAI } from './openai';
 
 function parts(pathname:string):string[]{ return pathname.split('/').filter(Boolean).map(decodeURIComponent); }
 function isStudioPath(path:string):boolean { return path==='/studio' || path.startsWith('/api/admin/'); }
@@ -68,6 +69,8 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
       `).first<any>();
       return json({user,cloudflare:{d1:true,r2_media:true,r2_backups:true,access:Boolean(env.TEAM_DOMAIN&&env.POLICY_AUD)},...status,email_domain:emailDomain,counts:db||{}});
     }
+
+    if(method==='GET' && p==='/api/admin/system/openai/check') return json(await checkOpenAI(env,user));
 
     if(method==='GET' && p==='/api/admin/staff') return json({staff:await listStaff(env,user)});
     if(method==='POST' && p==='/api/admin/staff') return json({staff:await upsertStaff(env,request,user,await readJson(request))},201);

@@ -88,11 +88,14 @@
 .compare-selects select{min-width:0;flex:1;border:1px solid var(--line);background:#fff;padding:9px}
 .compare-selects span{font-family:var(--serif);font-size:16px;color:#888}
 .compare-mode-note{margin-top:10px;min-height:1.7em}
-.compare-stage{position:relative;aspect-ratio:16/9;overflow:hidden;background:#1e1f1c;margin-top:16px;border:1px solid #2e2f2b}
-.compare-stage>img,.compare-right-clip img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block}
-.compare-right-clip{position:absolute;inset:0;overflow:hidden}
-.compare-divider{position:absolute;top:0;bottom:0;width:1px;background:#fff;box-shadow:0 0 0 1px #0004;pointer-events:none}
+.compare-stage{position:relative;aspect-ratio:16/9;overflow:hidden;background:#1e1f1c;margin-top:16px;border:1px solid #2e2f2b;cursor:ew-resize;touch-action:pan-y}
+.compare-stage>img,.compare-right-clip img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;user-select:none;-webkit-user-drag:none}
+.compare-right-clip{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.compare-divider{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 0 1px #0005,0 0 14px #0005;pointer-events:none;z-index:2}
+.compare-divider::before{content:'↔';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:44px;height:44px;border-radius:50%;background:#faf8f3;color:#242522;border:1px solid #aaa59c;box-shadow:0 3px 15px #0005;display:grid;place-items:center;font-size:25px;line-height:1}
+.compare-divider:focus-visible{outline:2px solid #efe6d5;outline-offset:5px}
 .compare-range{margin-top:10px}
+.compare-stage[hidden],.compare-range[hidden],.compare-mode-note[hidden]{display:none!important}
 .compare-stage.is-side-by-side{display:grid;grid-template-columns:1fr 1fr;gap:1px;aspect-ratio:auto!important;background:#d8d4cb;overflow:visible}
 .compare-stage.is-side-by-side>img,.compare-stage.is-side-by-side>.compare-right-clip{position:relative;inset:auto;width:100%;height:min(52vw,520px);background:#1e1f1c}
 .compare-stage.is-side-by-side>.compare-right-clip{overflow:hidden}

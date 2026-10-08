@@ -13,7 +13,8 @@ export async function listMedia(env: Env): Promise<any[]> {
       (SELECT COUNT(*) FROM media_assets c WHERE c.parent_media_id=m.id) AS child_count,
       (SELECT COUNT(*) FROM articles a WHERE a.cover_media_id=m.id) AS article_refs,
       (SELECT COUNT(*) FROM issues i WHERE i.cover_media_id=m.id) AS issue_refs,
-      (SELECT COUNT(*) FROM social_drafts s WHERE s.media_ids_json LIKE '%"' || m.id || '"%') AS social_refs
+      (SELECT COUNT(*) FROM social_drafts s WHERE s.media_ids_json LIKE '%"' || m.id || '"%') AS social_refs,
+      (SELECT COUNT(*) FROM site_settings v WHERE v.key LIKE 'site_visual_%' AND v.value=m.id) AS site_refs
     FROM media_assets m
     ORDER BY m.created_at DESC
     LIMIT 500
@@ -25,7 +26,8 @@ export async function listMedia(env: Env): Promise<any[]> {
     child_count: Number(r.child_count || 0),
     article_refs: Number(r.article_refs || 0),
     issue_refs: Number(r.issue_refs || 0),
-    social_refs: Number(r.social_refs || 0)
+    social_refs: Number(r.social_refs || 0),
+    site_refs: Number(r.site_refs || 0)
   }));
 }
 
@@ -149,6 +151,8 @@ export async function setMediaVisibility(env: Env, request: Request, user: AuthU
   const asset = await env.DB.prepare(`SELECT * FROM media_assets WHERE id=?`).bind(id).first<any>();
   if (!asset) throw new HttpError(404,'找不到圖片');
   if (visibility === 'private') {
+    const siteUse = await env.DB.prepare("SELECT key FROM site_settings WHERE key LIKE 'site_visual_%' AND value=? LIMIT 1").bind(id).first<any>();
+    if(siteUse) throw new HttpError(409,'此圖片正被網站前台使用。請先在網站視覺素材中解除指定');
     const articleUse = await env.DB.prepare(`SELECT id,title FROM articles WHERE cover_media_id=? AND status='published' LIMIT 1`).bind(id).first<any>();
     if (articleUse) throw new HttpError(409,`這張圖片正被已發布文章「${articleUse.title}」使用，不能改為私人`);
     const issueUse = await env.DB.prepare(`SELECT id,title,volume FROM issues WHERE cover_media_id=? AND status='published' LIMIT 1`).bind(id).first<any>();
@@ -165,6 +169,9 @@ export async function deleteMedia(env: Env, request: Request, user: AuthUser, id
   if (!['owner','admin'].includes(user.role)) throw new HttpError(403, '只有 Owner／Admin 可以刪除媒體素材');
   const asset = await env.DB.prepare(`SELECT * FROM media_assets WHERE id=?`).bind(id).first<any>();
   if (!asset) throw new HttpError(404, '找不到圖片');
+
+  const siteUse = await env.DB.prepare("SELECT key FROM site_settings WHERE key LIKE 'site_visual_%' AND value=? LIMIT 1").bind(id).first<any>();
+  if(siteUse) throw new HttpError(409,'此圖片正被網站前台使用，請先解除圖片指定後再刪除');
 
   const child = await env.DB.prepare(`SELECT id,filename FROM media_assets WHERE parent_media_id=? ORDER BY created_at DESC LIMIT 1`).bind(id).first<any>();
   if (child) throw new HttpError(409, `這張素材仍有衍生版本「${child.filename}」，請先刪除衍生版本`);

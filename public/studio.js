@@ -316,7 +316,7 @@ function mediaSourceLabel(m){
   if(m?.metadata?.derivative)return m.metadata.preset==='instagram-4x5'?'IG 4:5':m.metadata.preset==='instagram-1x1'?'IG 1:1':m.metadata.preset==='journal-16x9'?'Journal 16:9':'衍生版本';
   return ({upload:'上傳',ai_generate:'AI 原圖',ai_edit:'AI 修改',canva:'Canva',import:'衍生'})[m?.source]||m?.source||'素材';
 }
-function mediaUsageCount(m){return Number(m?.article_refs||0)+Number(m?.issue_refs||0)+Number(m?.social_refs||0)}
+function mediaUsageCount(m){return Number(m?.article_refs||0)+Number(m?.issue_refs||0)+Number(m?.social_refs||0)+Number(m?.site_refs||0)}
 function rootMediaId(id){
   let current=id,guard=0;
   while(guard++<30){
@@ -381,11 +381,102 @@ function renderMedia(){
     }catch(err){toast(err.message)}
   });
 }
-async function loadMedia(force=false){try{await fetchMedia(force);renderMedia()}catch(err){toast(err.message)}}
+async function loadMedia(force=false){try{await fetchMedia(force);renderMedia();await loadSiteVisuals()}catch(err){toast(err.message)}}
+
+
+/* SITE VISUALS: fixed placements; existing media library remains the source of truth. */
+let siteVisuals=[];
+async function loadSiteVisuals(){
+  const grid=$('#siteVisualGrid');if(!grid)return;
+  try{
+    const d=await api('/studio/api/admin/site-visuals');siteVisuals=d.visuals||[];
+    grid.innerHTML=siteVisuals.map(v=>{
+      const options=mediaCache.filter(m=>/^image\//.test(m.mime_type||'')).map(m=>
+        `<option value="${e(m.id)}" ${v.media_id===m.id?'selected':''}>${e(m.filename)} · ${m.visibility==='public'?'公開':'私人'}</option>`).join('');
+      const thumb=v.media_id?mediaUrl(mediaCache.find(m=>m.id===v.media_id)||{id:v.media_id,visibility:'public',public_url:v.url}):v.fallback;
+      return `<section class="vj-site-visual-card" data-visual-slot="${e(v.key)}">
+        <div class="vj-site-visual-preview"><img src="${e(thumb)}" loading="lazy" decoding="async" alt="${e(v.title)}"></div>
+        <div class="vj-site-visual-fields">
+          <h3>${e(v.title)}</h3><p class="form-note">${e(v.note)}</p>
+          <div class="vj-site-visual-status">${v.media_id?'已指定媒體素材':'使用網站預設圖片'}</div>
+          <label class="field"><span>從素材庫選擇</span><select data-visual-select="${e(v.key)}" ${canAdmin()?'':'disabled'}><option value="">網站預設圖片</option>${options}</select></label>
+          <div class="studio-actions">
+            <button class="btn primary" type="button" data-visual-save="${e(v.key)}" ${canAdmin()?'':'disabled'}>儲存更換</button>
+            <button class="btn" type="button" data-visual-reset="${e(v.key)}" ${canAdmin()?'':'disabled'}>恢復預設</button>
+          </div>
+          <label class="field"><span>新增圖片並直接套用</span><input type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-visual-file="${e(v.key)}" ${canAdmin()?'':'disabled'}></label>
+          <div class="studio-actions"><button class="btn" type="button" data-visual-upload="${e(v.key)}" ${canAdmin()?'':'disabled'}>上傳並套用</button>
+          ${v.media_id?`<button class="btn" data-visual-edit="${e(v.media_id)}" type="button">編輯素材版本</button>`:''}</div>
+        </div>
+      </section>`;
+    }).join('');
+    grid.querySelectorAll('[data-visual-select]').forEach(el=>el.onchange=()=>{
+      const card=el.closest('.vj-site-visual-card'),image=card?.querySelector('img');
+      const chosen=mediaCache.find(m=>m.id===el.value);
+      const cfg=siteVisuals.find(v=>v.key===el.dataset.visualSelect);
+      if(image)image.src=chosen?mediaUrl(chosen):cfg?.fallback||'';
+    });
+    grid.querySelectorAll('[data-visual-save]').forEach(b=>b.onclick=()=>assignSiteVisual(b.dataset.visualSave,grid.querySelector('[data-visual-select="'+b.dataset.visualSave+'"]')?.value||null,b));
+    grid.querySelectorAll('[data-visual-reset]').forEach(b=>b.onclick=async()=>{
+      if(!confirm('改回網站原本的預設圖片？已上傳的素材仍會保留在素材庫。'))return;
+      await assignSiteVisual(b.dataset.visualReset,null,b);
+    });
+    grid.querySelectorAll('[data-visual-upload]').forEach(b=>b.onclick=()=>uploadSiteVisual(b.dataset.visualUpload,b));
+    grid.querySelectorAll('[data-visual-edit]').forEach(b=>b.onclick=()=>{
+      const entry=document.querySelector('[data-media-edit="'+b.dataset.visualEdit+'"]');
+      if(!entry)return toast('請先重新整理素材庫');
+      entry.click();
+    });
+  }catch(err){grid.innerHTML='<p class="form-note">圖片設定無法載入，請重試。</p>';toast(err.message)}
+}
+async function assignSiteVisual(key,id,button){
+  if(!canAdmin())return toast('需要管理員權限');
+  const old=button?.textContent;if(button){button.disabled=true;button.textContent='儲存中…'}
+  try{
+    await api('/studio/api/admin/site-visuals/'+encodeURIComponent(key),{method:'PUT',body:JSON.stringify({media_id:id})});
+    mediaCache=[];await loadMedia(true);toast('前台圖片已更新');
+  }catch(err){toast(err.message);await loadSiteVisuals()}
+  finally{if(button){button.disabled=false;button.textContent=old}}
+}
+async function compressSiteImage(file){
+  if(!file.type.startsWith('image/')||file.type==='image/avif'&&typeof createImageBitmap!=='function')return file;
+  try{
+    const bitmap=await createImageBitmap(file);
+    const max=1920,scale=Math.min(1,max/Math.max(bitmap.width,bitmap.height));
+    if(scale===1&&file.size<650000)return file;
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.round(bitmap.width*scale);canvas.height=Math.round(bitmap.height*scale);
+    if(!canvas.width||!canvas.height)throw new Error('圖片尺寸無效');
+    canvas.getContext('2d',{alpha:false}).drawImage(bitmap,0,0,canvas.width,canvas.height);
+    bitmap.close?.();
+    const webp=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',.83));
+    const type=webp?.type==='image/webp'?'image/webp':'image/jpeg';
+    const blob=type==='image/webp'?webp:await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.84));
+    canvas.width=canvas.height=0;
+    if(!blob)return file;
+    return new File([blob],file.name.replace(/\.[^.]+$/,type==='image/webp'?'.webp':'.jpg'),{type});
+  }catch(err){if(file.size>15*1024*1024)throw new Error('圖片超過 15MB，請先縮小後上傳');return file}
+}
+async function uploadSiteVisual(key,button){
+  if(!canAdmin())return toast('需要管理員權限');
+  const input=$('#siteVisualGrid').querySelector('[data-visual-file="'+key+'"]'),file=input?.files?.[0];
+  if(!file)return toast('請先選擇要新增的圖片');
+  if(!['image/jpeg','image/png','image/webp','image/avif'].includes(file.type))return toast('只接受 JPEG、PNG、WebP、AVIF');
+  const text=button.textContent;button.disabled=true;button.textContent='正在上傳…';
+  try{
+    const optimized=await compressSiteImage(file);
+    const data=new FormData();data.append('file',optimized);data.append('visibility','public');data.append('alt_text','VINCENT JOURNAL '+key);
+    const r=await api('/studio/api/admin/media/upload',{method:'POST',body:data});
+    await api('/studio/api/admin/site-visuals/'+encodeURIComponent(key),{method:'PUT',body:JSON.stringify({media_id:r.media.id})});
+    mediaCache=[];await loadMedia(true);toast('已新增圖片並更新網站');
+  }catch(err){toast('上傳未完成：'+err.message)}
+  finally{button.disabled=false;button.textContent=text}
+}
+$('#refreshSiteVisualsBtn').onclick=async()=>{await fetchMedia(true);renderMedia();await loadSiteVisuals()};
 
 async function deleteMediaFromStudio(id){
   const m=mediaCache.find(x=>x.id===id); if(!m)return;
-  if(mediaUsageCount(m)>0)return toast('這張素材仍被文章、刊物或社群草稿使用，不能刪除');
+  if(mediaUsageCount(m)>0)return toast('這張素材仍被前台網站、文章、刊物或社群草稿使用，不能刪除');
   if(Number(m.child_count||0)>0)return toast('這張素材仍有衍生版本，請先刪除衍生版本');
   const versionNote=m.parent_media_id?'\n\n這是衍生版本；原圖會保留。':'';
   if(!window.confirm(`確定永久刪除「${m.filename}」？\n\nR2 圖檔與素材紀錄都會刪除，且無法復原。${versionNote}`))return;

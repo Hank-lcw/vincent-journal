@@ -5,7 +5,7 @@
  <linearGradient id="side" x1="0" y1="0" x2="1" y2=".17"><stop stop-color="#342e29"/><stop offset=".49" stop-color="#988579"/><stop offset=".63" stop-color="#e5ccbc"/><stop offset="1" stop-color="#4e4640"/></linearGradient>
  <linearGradient id="torso" x1=".14" y1="0" x2="1" y2="1"><stop stop-color="#333330"/><stop offset=".35" stop-color="#77716c"/><stop offset=".63" stop-color="#403f3b"/><stop offset="1" stop-color="#272723"/></linearGradient>
  <radialGradient id="shine"><stop stop-color="#fff5e9" stop-opacity=".27"/><stop offset=".48" stop-color="#e2c8b8" stop-opacity=".09"/><stop offset="1" stop-color="#d8c7b6" stop-opacity="0"/></radialGradient>
- <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".6" numOctaves="3" stitchTiles="stitch" result="noise"/><feColorMatrix in="noise" type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".09"/></feComponentTransfer></filter>
+ 
  <filter id="soft"><feGaussianBlur stdDeviation="45"/></filter>
  <filter id="edge"><feGaussianBlur stdDeviation="3"/></filter>
 </defs>
@@ -35,6 +35,6 @@
 <path d="M665 227 C724 132 862 118 973 182" stroke="#d8bcae" stroke-opacity=".15" stroke-width="25" fill="none" filter="url(#soft)"/>
 <path d="M958 145 C1001 209 1024 286 1017 363" stroke="#ffecde" opacity=".15" stroke-width="7" fill="none" filter="url(#edge)"/>
 <path d="M1004 440 Q984 553 972 651" stroke="#ffecd9" opacity=".17" stroke-width="5" fill="none"/>
-<rect width="1400" height="1150" filter="url(#grain)" opacity=".56"/>
+
 <rect width="1400" height="1150" fill="none" stroke="#9f9487" stroke-opacity=".3" stroke-width="5"/>
 </svg>

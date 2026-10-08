@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Instrument+Serif&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<script defer src="studio.js"></script>
+<script defer src="studio.js"></script><link rel="stylesheet" href="studio-site-visuals.css">
 </head>
 <body class="studio-body">
 <div class="studio-shell">
@@ -94,6 +94,17 @@
 </section>
 
 <section class="view" data-view="media">
+  <div class="panel vj-site-visual-manager">
+    <div class="panel-head">
+      <div><div class="meta">SITE IMAGE MANAGER</div><h2>網站視覺素材</h2>
+      <p>管理前台非文章圖片：開場人物、編輯者圖片、靜物與 About 封面。可選擇素材庫圖片，或直接上傳並套用；按「恢復預設」解除圖片指定，不會影響文章附圖。</p></div>
+      <button class="btn" id="refreshSiteVisualsBtn" type="button">重新整理</button>
+    </div>
+    <div id="siteVisualGrid" class="vj-site-visual-grid" aria-live="polite">
+      <p class="form-note">正在載入網站圖片設定…</p>
+    </div>
+    <p class="form-note">網站使用中的圖片會受到刪除保護。需要永久刪除時，先解除圖片指定，再至下方媒體素材庫刪除未使用的檔案。</p>
+  </div>
   <div class="panel">
     <div class="panel-head">
       <div>

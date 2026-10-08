@@ -220,7 +220,8 @@
 
 <section class="view" data-view="newsletter">
   <div class="panel">
-    <h2>電子報工作室</h2><p>訂閱採 Double Opt-in。只有完成信箱確認且未退訂／未被抑制的讀者才會進入寄送名單。</p>
+    <div class="panel-head"><div><h2>電子報工作室</h2><p>訂閱採 Double Opt-in。只有完成信箱確認且未退訂／未被抑制的讀者才會進入寄送名單。</p></div></div>
+    <div id="newsletterDeliveryStatus" class="newsletter-delivery-status"></div>
     <div class="studio-grid">
       <div class="metric"><span>已驗證訂閱者</span><b id="activeSubs">—</b></div>
       <div class="metric"><span>待驗證</span><b id="pendingSubs">—</b></div>
@@ -231,13 +232,15 @@
   <div class="panel" id="campaignEditorPanel">
     <div class="panel-head"><div><h2 id="campaignEditorTitle">建立新一期</h2><p>草稿可以反覆修改；送審後若再編輯，會自動回到草稿並重新送審。</p></div></div>
     <div class="form-grid">
+      <div class="field field-wide"><label>來源文章（選填）</label><select id="campaignArticle"><option value="">不綁定文章</option></select></div>
       <div class="field field-wide"><label>主旨</label><input id="campaignSubject" maxlength="200"></div>
       <div class="field field-wide"><label>預覽文字</label><input id="campaignPreview" maxlength="300"></div>
       <div class="field"><label>預計寄送時間（選填）</label><input id="campaignSchedule" type="datetime-local"></div>
+      <div class="field field-wide"><label>AI 編輯方向（選填）</label><textarea id="campaignAiBrief" placeholder="例如：把這篇文章整理成一封精簡、像編輯手記的電子報，不要太像文章摘要。"></textarea></div>
       <div class="field field-wide"><label>HTML 內容</label><textarea id="campaignHtml" class="article-editor-body"></textarea></div>
       <div class="field field-wide"><label>純文字版本</label><textarea id="campaignText"></textarea></div>
     </div>
-    <div class="studio-actions editor-actions"><button class="btn" id="saveCampaignDraftBtn">儲存草稿</button><button class="btn primary" id="submitCampaignBtn">儲存並送審</button><button class="btn" id="cancelCampaignEditBtn" hidden>取消編輯</button></div>
+    <div class="studio-actions editor-actions"><button class="btn" id="generateCampaignBtn">AI 生成電子報內容</button><button class="btn" id="saveCampaignDraftBtn">儲存草稿</button><button class="btn primary" id="submitCampaignBtn">儲存並送審</button><button class="btn" id="cancelCampaignEditBtn" hidden>取消編輯</button></div>
     <div id="campaignList"></div>
   </div>
   <div class="panel"><h2>訂閱者</h2><div class="table-wrap" id="newsletterTable"></div></div>

@@ -1268,7 +1268,9 @@ function resetSocialEditor(){
   $('#saveSocialDraftBtn').textContent='儲存草稿';
   $('#submitSocialDraftBtn').textContent='儲存並送審';
   $('#cancelSocialEditBtn').hidden=true;
+  renderSocialMediaPicker();
   renderSocialCarousel();
+  renderSocialStoryboard();
   renderSocialPreview();
 }
 function openSocialEditor(id){

@@ -12,17 +12,17 @@
 GitHub Actions 已加保護：在 Cloudflare Secrets 尚未設定時，deploy job 會跳過，不會因初始 commit 持續失敗。
 
 ## 1. Cloudflare resources
-- [x] 建立 D1：`vincent-journal`
+- [x] Production D1：`vincent-journal-runtime`
 - [x] 建立 R2：`vincent-journal-media`
 - [x] 建立 R2：`vincent-journal-backups`
-- [x] 把 D1 database ID 填入 `wrangler.jsonc`
+- [x] D1 database ID 已固定於 `wrangler.jsonc`
 - [ ] 決定正式網域，例如 `journal.<your-domain>`
 - [ ] 替換 `PUBLIC_BASE_URL`、OAuth redirect URI、`MAIL_FROM`
 
 ## 2. Cloudflare Access
 - [ ] 建立 Self-hosted Access Application
 - [ ] 保護 `/studio*`
-- [ ] 保護 `/api/admin/*`
+- [x] Studio 改為單一 Access prefix：保護 `/studio*`（涵蓋 `/studio/api/admin/*`）
 - [ ] 只允許管理員 Email / IdP group
 - [ ] 填入 `TEAM_DOMAIN`
 - [ ] 填入 Application `POLICY_AUD`
@@ -42,6 +42,7 @@ Worker 會再次驗證 `Cf-Access-Jwt-Assertion`，不是只依賴前方 Access 
 - [ ] `META_APP_SECRET`
 - [ ] `THREADS_APP_ID`
 - [ ] `THREADS_APP_SECRET`
+- [ ] `TURNSTILE_SITE_KEY`（公開 key，可作 Worker 變數／secret）
 - [ ] `TURNSTILE_SECRET_KEY`（建議）
 
 ## 4. Database
@@ -79,7 +80,7 @@ Worker 會再次驗證 `Cf-Access-Jwt-Assertion`，不是只依賴前方 Access 
 ## 8. Canva
 - [ ] OAuth callback
 - [ ] Brand Template / design autofill / asset scopes
-- [ ] 建立 VINCENT JOURNAL Brand Templates
+- [ ] 建立 VINCENT JOURNAL Brand Templates（Studio 已可搜尋、讀取 dataset、上傳公開素材並 Autofill）
 - [ ] Autofill fields：`TITLE`, `SUBTITLE`, `EXCERPT`, `CATEGORY`, `IMAGE`, `BRAND_NAME`, `ISSUE`, `PAGE_NUMBER`, `QUOTE`, `CAPTION`
 - [ ] 測試 Autofill 產生新 design
 - [ ] 不直接覆蓋母版
@@ -103,13 +104,12 @@ Worker 會再次驗證 `Cf-Access-Jwt-Assertion`，不是只依賴前方 Access 
 - [ ] Cloudflare Build deploy command changed to `npm run deploy:cloudflare`
 - [x] Confirm migration creates the production tables (verified via sqlite_master; table_count = 19)
 
-- [ ] Fresh build after deploy-command change (do not rely on retrying an older build snapshot)
+- [ ] Fresh production build after secrets／deploy-command 確認
 
 ## Next: Cloudflare Access
 - [ ] Remove any production-wide Access protection from the public Worker URL
 - [ ] Keep Preview URLs protected
 - [ ] Create path-scoped Access protection for `/studio*`
-- [ ] Create path-scoped Access protection for `/api/admin/*`
 - [ ] Allow only `andyhank1234567890@gmail.com`
 - [x] Record Team Domain and Application AUD in `wrangler.jsonc`
 - [ ] Verify first login bootstraps owner role
@@ -117,3 +117,11 @@ Worker 會再次驗證 `Cf-Access-Jwt-Assertion`，不是只依賴前方 Access 
 ### Access JWT values
 - Team Domain: `https://andyhank1234567890.cloudflareaccess.com`
 - Application AUD: `7dd196f9be1362f0dcd1b39f50ab859d2545c18b94ecbea156da4981df16b65c`
+
+## Current automated gates
+- [x] TypeScript typecheck
+- [x] Production dependency audit (`npm audit --omit=dev`)
+- [x] Repository JS/route QA
+- [x] Local D1 migration test
+- [x] Wrangler dry run
+- [ ] GitHub Actions production deploy / remote migration / smoke（等待 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`）

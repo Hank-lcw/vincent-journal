@@ -12,8 +12,8 @@ function apply(){
  if(!visuals)return;
  for(const item of visuals){
   if(!Object.prototype.hasOwnProperty.call(selectors,item.key))continue;
-  const url=String(item.url||item.fallback||'');
-  if(!url||!^(assets\/|\/media\/|https:\/\/)/.test(url))continue;
+  const url=item.media_id?'/media/'+encodeURIComponent(item.media_id):String(item.url||item.fallback||'');
+  if(!url||!(url.startsWith('assets/')||url.startsWith('/media/')||url.startsWith('https://')))continue;
   const el=document.querySelector(selectors[item.key]);
   if(!el)continue;
   if(el.tagName.toLowerCase()==='image')el.setAttribute('href',url);

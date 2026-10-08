@@ -97,8 +97,17 @@ async function storeAiResult(env: Env, user: AuthUser, request: Request, b64: st
   const ext = mime === 'image/png' ? 'png' : mime === 'image/jpeg' ? 'jpg' : 'webp';
   const key = `ai/${new Date().toISOString().slice(0,10)}/${id}.${ext}`;
   await env.MEDIA.put(key, bytes, { httpMetadata:{contentType:mime,cacheControl:'private,no-store'}, customMetadata:{source: parentId ? 'ai_edit':'ai_generate', model} });
+  let baseName='AI 視覺素材';
+  let originalParent:any=null;
+  if(parentId) originalParent=await env.DB.prepare(`SELECT filename FROM media_assets WHERE id=?`).bind(parentId).first<any>();
+  if(originalParent?.filename) baseName=String(originalParent.filename).replace(/\.[^.]+$/,'')+'｜AI 修改';
+  else {
+    const promptName=prompt.replace(/[\\/:*?"<>|\n\r]+/g,' ').replace(/\s+/g,' ').trim().slice(0,42);
+    if(promptName) baseName=promptName;
+  }
+  const aiFilename=`${baseName}.${ext}`;
   await env.DB.prepare(`INSERT INTO media_assets (id,object_key,filename,mime_type,byte_size,source,parent_media_id,visibility,alt_text,tags_json,ai_prompt,ai_model,metadata_json,created_by,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .bind(id,key,`${id}.${ext}`,mime,bytes.byteLength,parentId?'ai_edit':'ai_generate',parentId||null,'private','',JSON.stringify(['AI','VINCENT JOURNAL']),prompt,model,JSON.stringify({editorialGuard:true}),user.id,nowIso()).run();
+    .bind(id,key,aiFilename,mime,bytes.byteLength,parentId?'ai_edit':'ai_generate',parentId||null,'private','',JSON.stringify(['AI','VINCENT JOURNAL']),prompt,model,JSON.stringify({editorialGuard:true,original_filename:`${id}.${ext}`}),user.id,nowIso()).run();
   await audit(env, request, user, parentId ? 'media.ai_edit':'media.ai_generate','media',id,{model,parentId:parentId||null});
   return env.DB.prepare(`SELECT * FROM media_assets WHERE id=?`).bind(id).first();
 }
@@ -145,6 +154,84 @@ export async function editImage(env: Env, request: Request, user: AuthUser, inpu
   const b64 = data?.data?.[0]?.b64_json;
   if (!b64) throw new HttpError(502, 'AI 沒有回傳修改圖片');
   return storeAiResult(env,user,request,b64,prompt,editModel,mediaId,'image/webp');
+}
+
+
+function responseText(data:any):string{
+  if(typeof data?.output_text==='string' && data.output_text.trim()) return data.output_text.trim();
+  const texts:string[]=[];
+  for(const item of Array.isArray(data?.output)?data.output:[]){
+    for(const part of Array.isArray(item?.content)?item.content:[]){
+      if(typeof part?.text==='string') texts.push(part.text);
+    }
+  }
+  return texts.join('\n').trim();
+}
+function cleanJsonText(text:string):string{
+  return text.replace(/^\s*```(?:json)?\s*/i,'').replace(/\s*```\s*$/,'').trim();
+}
+function bytesToBase64(bytes:Uint8Array):string{
+  let binary='';
+  const size=0x8000;
+  for(let i=0;i<bytes.length;i+=size) binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+size,bytes.length)));
+  return btoa(binary);
+}
+function filenameExt(asset:any):string{
+  const fromName=String(asset?.filename||'').match(/\.([a-zA-Z0-9]{2,5})$/)?.[1];
+  if(fromName) return fromName.toLowerCase();
+  return asset?.mime_type==='image/png'?'png':asset?.mime_type==='image/avif'?'avif':asset?.mime_type==='image/webp'?'webp':'jpg';
+}
+function sanitizeMediaName(value:string):string{
+  return String(value||'').replace(/[\\/:*?"<>|\n\r]+/g,' ').replace(/\s+/g,' ').trim().replace(/[. ]+$/,'').slice(0,80);
+}
+
+export async function analyzeMedia(env:Env,request:Request,user:AuthUser,id:string):Promise<any>{
+  if(!env.OPENAI_API_KEY) throw new HttpError(503,'OPENAI_API_KEY 尚未設定');
+  const asset=await env.DB.prepare(`SELECT * FROM media_assets WHERE id=?`).bind(id).first<any>();
+  if(!asset) throw new HttpError(404,'找不到圖片');
+  if(!allowedImageTypes.has(asset.mime_type)) throw new HttpError(415,'這個素材不是可辨識的圖片格式');
+  const object=await env.MEDIA.get(asset.object_key);
+  if(!object) throw new HttpError(404,'圖片檔案不存在');
+  const bytes=new Uint8Array(await object.arrayBuffer());
+  if(bytes.byteLength>15*1024*1024) throw new HttpError(413,'圖片過大，暫時無法進行 AI 辨識');
+  const b64=bytesToBase64(bytes);
+  const instruction=`你是 VINCENT JOURNAL 的媒體素材編目助手。請只根據圖片中可見內容做中性描述，不辨識或猜測真實人物身分，不推測種族、健康狀況、宗教、政治立場、性傾向等敏感屬性。
+請回傳合法 JSON，不要 markdown：
+{"name":"8–28字、可快速辨識素材的繁體中文名稱","alt_text":"一句精確、自然的繁體中文替代文字","tags":["3–7個簡短繁體中文標籤"]}
+命名優先包含：主體 + 視角/構圖 + 明顯場景或視覺特徵；避免「照片1、圖片、素材」這種無資訊名稱，也不要使用行銷誇張詞。`;
+  const res=await fetch('https://api.openai.com/v1/responses',{
+    method:'POST',
+    headers:{authorization:`Bearer ${env.OPENAI_API_KEY}`,'content-type':'application/json'},
+    body:JSON.stringify({
+      model:env.OPENAI_TEXT_MODEL||'gpt-6-luna',
+      instructions:instruction,
+      input:[{role:'user',content:[
+        {type:'input_text',text:`請為這張媒體素材建立編目資訊。原始檔名：${asset.filename}`},
+        {type:'input_image',image_url:`data:${asset.mime_type};base64,${b64}`}
+      ]}],
+      max_output_tokens:500
+    })
+  });
+  const data:any=await res.json().catch(()=>({}));
+  if(!res.ok) throw new HttpError(502,`AI 圖片辨識失敗：${data?.error?.message||res.status}`);
+  const raw=responseText(data); if(!raw) throw new HttpError(502,'AI 沒有回傳辨識內容');
+  let parsed:any;
+  try{parsed=JSON.parse(cleanJsonText(raw));}catch{throw new HttpError(502,'AI 圖片辨識結果格式不正確');}
+  const name=sanitizeMediaName(parsed?.name);
+  if(name.length<2) throw new HttpError(502,'AI 沒有產生有效素材名稱');
+  const alt=String(parsed?.alt_text||'').trim().slice(0,500);
+  const tags=Array.isArray(parsed?.tags)?parsed.tags.map((x:any)=>String(x).trim().slice(0,60)).filter(Boolean).slice(0,7):[];
+  const metadata=safeJson<any>(asset.metadata_json,{});
+  if(!metadata.original_filename) metadata.original_filename=asset.filename;
+  metadata.ai_catalogued=true;
+  metadata.ai_catalogued_at=nowIso();
+  metadata.ai_catalogue_model=env.OPENAI_TEXT_MODEL||'gpt-6-luna';
+  metadata.ai_display_name=name;
+  const filename=`${name}.${filenameExt(asset)}`;
+  await env.DB.prepare(`UPDATE media_assets SET filename=?,alt_text=?,tags_json=?,metadata_json=? WHERE id=?`)
+    .bind(filename,alt||asset.alt_text||'',JSON.stringify(tags),JSON.stringify(metadata),id).run();
+  await audit(env,request,user,'media.analyze','media',id,{filename,previous_filename:asset.filename,tags});
+  return env.DB.prepare(`SELECT * FROM media_assets WHERE id=?`).bind(id).first();
 }
 
 export async function setMediaVisibility(env: Env, request: Request, user: AuthUser, id: string, visibility: 'private'|'public'): Promise<any> {

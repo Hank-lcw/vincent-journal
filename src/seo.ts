@@ -30,7 +30,7 @@ function canonical(url: string): string {
   return '<link rel="canonical" href="' + escapeHtml(url) + '">';
 }
 function htmlDate(date: unknown): string {
-  return typeof date === 'string' && /^\\d{4}-\\d{2}-\\d{2}/.test(date) ? date : '';
+  return typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date) ? date : '';
 }
 function urlForArticle(base: string, slug: string): string {
   return base + '/article.html?id=' + encodeURIComponent(slug);
@@ -143,8 +143,8 @@ export async function handleSeoRoute(request: Request, env: Env): Promise<Respon
   const url = new URL(request.url);
   const base = origin(env, request);
   if (url.pathname === '/robots.txt') {
-    const text = 'User-agent: *\\nAllow: /\\nDisallow: /studio\\nDisallow: /api/admin/\\nSitemap: ' +
-      base + '/sitemap.xml\\n';
+    const text = 'User-agent: *\nAllow: /\nDisallow: /studio\nDisallow: /api/admin/\nSitemap: ' +
+      base + '/sitemap.xml\n';
     return respond(request, text, 'text/plain; charset=utf-8');
   }
   if (url.pathname === '/sitemap.xml') return sitemap(request, env, base);

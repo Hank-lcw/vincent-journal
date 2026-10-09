@@ -13,6 +13,7 @@ import { listAdminIssues, getIssueArticlesAdmin, createIssue, updateIssue, setIs
 import { runDueJobs } from './jobs';
 import { checkOpenAI } from './openai';
 import { getSiteVisuals, assignSiteVisual } from './site-visuals';
+import { handleSeoRoute } from './seo';
 
 function parts(pathname:string):string[]{ return pathname.split('/').filter(Boolean).map(decodeURIComponent); }
 function isStudioPath(path:string):boolean { return path==='/studio' || path.startsWith('/api/admin/'); }
@@ -23,6 +24,9 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
   const url=new URL(request.url); let p=url.pathname; const method=request.method.toUpperCase();
   if(method==='GET' && (p==='/studio/' || p==='/studio.html')) return Response.redirect(new URL('/studio',url).toString(),302);
   if(p.startsWith('/studio/api/admin/')) p='/api/admin/'+p.slice('/studio/api/admin/'.length); const seg=parts(p);
+
+  const seoResponse=await handleSeoRoute(request,env);
+  if(seoResponse) return seoResponse;
 
   const publicHtmlAliases:Record<string,string>={'/':'/index.html','/discover':'/discover.html','/article':'/article.html','/issue':'/issue.html'};
   if(method==='GET' && publicHtmlAliases[p]){ const assetUrl=new URL(request.url); assetUrl.pathname=publicHtmlAliases[p]; return env.ASSETS.fetch(new Request(assetUrl.toString(),request)); }

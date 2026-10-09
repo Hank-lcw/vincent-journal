@@ -21,7 +21,7 @@ function safeImageSrc(value:string):string|null {
   if(/^https?:\/\//.test(lower) || /^\/media\//.test(v) || /^assets\//.test(v) || /^\.\.?\/assets\//.test(v)) return v;
   return null;
 }
-function sanitizeArticleHtml(input:string):string {
+export function sanitizeArticleHtml(input:string):string {
   const allowed=new Set(['p','h2','h3','h4','blockquote','ul','ol','li','strong','b','em','i','u','br','hr','a','code','pre','sup','sub','figure','figcaption','img']);
   const voids=new Set(['br','hr','img']);
   let html=input.slice(0,100_000)
@@ -69,6 +69,7 @@ function normalizeArticleInput(input: any, partial = false) {
   if (input.featured !== undefined) out.featured = input.featured ? 1 : 0;
   take('seo_title', input.seo_title === null ? null : (input.seo_title != null ? String(input.seo_title).slice(0, 70) : undefined));
   take('seo_description', input.seo_description === null ? null : (input.seo_description != null ? String(input.seo_description).slice(0, 180) : undefined));
+  take('author_name', input.author_name != null ? String(input.author_name).trim().slice(0, 80) : undefined);
   if (!partial && !out.title) throw new HttpError(400, '文章標題不可空白');
   if (out.title !== undefined && !out.title) throw new HttpError(400, '文章標題不可空白');
   return out;
@@ -144,7 +145,7 @@ export async function listAdminArticles(env: Env, user: AuthUser): Promise<any[]
 export async function listPublicArticles(env: Env, url: URL): Promise<any[]> {
   const category = url.searchParams.get('category');
   const limit = asInt(url.searchParams.get('limit'), 50, 1, 100);
-  let sql = `SELECT a.id,a.slug,a.title,a.subtitle,a.excerpt,a.category,a.read_time_minutes,a.featured,a.published_at,m.public_url AS cover_url,m.alt_text AS cover_alt FROM articles a LEFT JOIN media_assets m ON m.id=a.cover_media_id WHERE a.status='published'`;
+  let sql = `SELECT a.id,a.slug,a.title,a.subtitle,a.excerpt,a.category,a.read_time_minutes,a.featured,a.published_at,a.author_name,m.public_url AS cover_url,m.alt_text AS cover_alt FROM articles a LEFT JOIN media_assets m ON m.id=a.cover_media_id WHERE a.status='published'`;
   const binds: any[] = [];
   if (category && categories.has(category)) { sql += ` AND a.category=?`; binds.push(category); }
   sql += ` ORDER BY a.published_at DESC LIMIT ?`; binds.push(limit);
@@ -153,7 +154,7 @@ export async function listPublicArticles(env: Env, url: URL): Promise<any[]> {
 }
 
 export async function getPublicArticle(env: Env, slug: string): Promise<any> {
-  const row = await env.DB.prepare(`SELECT a.id,a.slug,a.title,a.subtitle,a.excerpt,a.body,a.category,a.read_time_minutes,a.featured,a.seo_title,a.seo_description,a.published_at,m.public_url AS cover_url,m.alt_text AS cover_alt FROM articles a LEFT JOIN media_assets m ON m.id=a.cover_media_id WHERE a.slug=? AND a.status='published'`).bind(slug).first<any>();
+  const row = await env.DB.prepare(`SELECT a.id,a.slug,a.title,a.subtitle,a.excerpt,a.body,a.category,a.read_time_minutes,a.featured,a.seo_title,a.seo_description,a.published_at,a.updated_at,a.author_name,m.public_url AS cover_url,m.alt_text AS cover_alt FROM articles a LEFT JOIN media_assets m ON m.id=a.cover_media_id WHERE a.slug=? AND a.status='published'`).bind(slug).first<any>();
   if (!row) throw new HttpError(404, '找不到文章');
   return row;
 }
@@ -166,8 +167,8 @@ export async function createArticle(env: Env, request: Request, user: AuthUser, 
   const exists = await env.DB.prepare(`SELECT id FROM articles WHERE slug=?`).bind(slug).first();
   if (exists) slug = `${slug}-${Date.now().toString(36)}`;
   const now = nowIso();
-  await env.DB.prepare(`INSERT INTO articles (id,slug,title,subtitle,excerpt,body,category,status,cover_media_id,read_time_minutes,featured,seo_title,seo_description,created_by,updated_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'draft',?,?,?,?,?,?,?,?,?)`)
-    .bind(id, slug, data.title, data.subtitle || '', data.excerpt || '', data.body || '', data.category || 'aesthetics', data.cover_media_id || null, data.read_time_minutes || 6, data.featured || 0, data.seo_title || null, data.seo_description || null, user.id, user.id, now, now).run();
+  await env.DB.prepare(`INSERT INTO articles (id,slug,title,subtitle,excerpt,body,category,status,cover_media_id,read_time_minutes,featured,seo_title,seo_description,author_name,created_by,updated_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'draft',?,?,?,?,?,?,?,?,?,?)`)
+    .bind(id, slug, data.title, data.subtitle || '', data.excerpt || '', data.body || '', data.category || 'aesthetics', data.cover_media_id || null, data.read_time_minutes || 6, data.featured || 0, data.seo_title || null, data.seo_description || null, data.author_name || '', user.id, user.id, now, now).run();
   await snapshot(env, id, user, '建立文章');
   await audit(env, request, user, 'article.create', 'article', id, { slug });
   return env.DB.prepare(`SELECT * FROM articles WHERE id=?`).bind(id).first();
@@ -179,7 +180,7 @@ export async function updateArticle(env: Env, request: Request, user: AuthUser, 
   if (current.status === 'published' && user.role === 'editor') throw new HttpError(403, '已發布文章需由 reviewer 以上權限修改');
   const data = normalizeArticleInput(input, true);
   if (Object.prototype.hasOwnProperty.call(data,'cover_media_id')) await validateCoverMedia(env,data.cover_media_id);
-  const allowed = ['title','subtitle','excerpt','body','category','slug','cover_media_id','read_time_minutes','featured','seo_title','seo_description'];
+  const allowed = ['title','subtitle','excerpt','body','category','slug','cover_media_id','read_time_minutes','featured','seo_title','seo_description','author_name'];
   const keys = allowed.filter(k => Object.prototype.hasOwnProperty.call(data,k));
   if (!keys.length) return current;
   await snapshot(env, id, user, '修改前自動版本');
@@ -258,8 +259,8 @@ export async function restoreArticleRevision(env: Env, request: Request, user: A
   if (!rev) throw new HttpError(404, '找不到版本');
   const s = JSON.parse(rev.snapshot_json);
   await snapshot(env, articleId, user, '還原前自動版本');
-  await env.DB.prepare(`UPDATE articles SET slug=?,title=?,subtitle=?,excerpt=?,body=?,category=?,status='draft',cover_media_id=?,read_time_minutes=?,featured=?,seo_title=?,seo_description=?,published_at=NULL,updated_by=?,updated_at=? WHERE id=?`)
-    .bind(s.slug,s.title,s.subtitle,s.excerpt,s.body,s.category,s.cover_media_id,s.read_time_minutes,s.featured,s.seo_title,s.seo_description,user.id,nowIso(),articleId).run();
+  await env.DB.prepare(`UPDATE articles SET slug=?,title=?,subtitle=?,excerpt=?,body=?,category=?,status='draft',cover_media_id=?,read_time_minutes=?,featured=?,seo_title=?,seo_description=?,author_name=?,published_at=NULL,updated_by=?,updated_at=? WHERE id=?`)
+    .bind(s.slug,s.title,s.subtitle,s.excerpt,s.body,s.category,s.cover_media_id,s.read_time_minutes,s.featured,s.seo_title,s.seo_description,s.author_name || '',user.id,nowIso(),articleId).run();
   await audit(env, request, user, 'article.revision.restore', 'article', articleId, { revisionId });
   return env.DB.prepare(`SELECT * FROM articles WHERE id=?`).bind(articleId).first();
 }

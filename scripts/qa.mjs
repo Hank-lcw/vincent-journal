@@ -33,6 +33,27 @@ if(studio.includes('"/api/admin/')||studio.includes("'/api/admin/")) fail('admin
 if(!studio.includes('/studio/api/admin/')) fail('Studio admin API prefix missing');
 if(!studio.includes("$('.view').forEach")||!studio.includes("$('#studioMenu button').forEach")) fail('Studio view switching must use querySelectorAll');
 
+// SEO/GEO foundation: ensure crawlability is tied to D1 publication status, not the demo fallback.
+const seo=fs.readFileSync('src/seo.ts','utf8');
+for(const route of ['/robots.txt','/sitemap.xml','/about/vincent-lin','/article.html','application/ld+json']){
+  if(!seo.includes(route))fail('missing SEO endpoint/schema: '+route);
+}
+if(!seo.includes("status='published'"))fail('sitemap must include published articles only');
+if(!seo.includes('sanitizeArticleHtml'))fail('SEO article body must be sanitized before HTML rendering');
+if(!index.includes('handleSeoRoute(request,env)'))fail('SEO routes not wired in Worker');
+const authorMigration=fs.readFileSync('migrations/0006_article_author_name.sql','utf8');
+if(!authorMigration.includes('ALTER TABLE articles ADD COLUMN author_name'))fail('missing authorship D1 migration');
+const articleSource=fs.readFileSync('src/articles.ts','utf8');
+for(const field of ['author_name','seo_title','seo_description']){
+  if(!articleSource.includes(field))fail('article DB field missing: '+field);
+}
+const studioFields=fs.readFileSync('public/studio.html','utf8');
+const studioClient=fs.readFileSync('public/studio.js','utf8');
+for(const field of ['articleAuthor','articleSeoTitle','articleSeoDescription']){
+  if(!studioFields.includes('id="'+field+'"')||!studioClient.includes(field))fail('missing editor field: '+field);
+}
+if(!studioFields.includes('noindex,nofollow'))fail('Studio must not be indexed');
+
 const migration=fs.readFileSync('migrations/0001_initial.sql','utf8');
 const tables=[...migration.matchAll(/CREATE TABLE IF NOT EXISTS\s+([A-Za-z0-9_]+)/g)].map(x=>x[1]);
 if(tables.length<17) fail(`unexpected baseline table count: ${tables.length}`);

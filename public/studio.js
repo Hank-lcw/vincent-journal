@@ -110,6 +110,9 @@ async function openArticleEditor(id=null){
     fillMediaSelect($('#articleCover'),a?.cover_media_id||'');
     $('#articleFeatured').checked=Boolean(a?.featured);
     $('#articleExcerpt').value=a?.excerpt||'';
+    $('#articleAuthor').value=a?.author_name||'';
+    $('#articleSeoTitle').value=a?.seo_title||'';
+    $('#articleSeoDescription').value=a?.seo_description||'';
     $('#articleBody').value=a?.body||'';
     $('#articleEditorMode').textContent=a?(`正在編輯：${a.title}`+(['in_review','approved','published'].includes(a.status)?' · 儲存修改後會回到草稿並需重新送審':'')):'建立新草稿';
     $('#saveArticleBtn').textContent=a?'儲存修改':'儲存草稿';
@@ -128,6 +131,9 @@ async function saveArticle(){
     cover_media_id:$('#articleCover').value||null,
     featured:$('#articleFeatured').checked,
     excerpt:$('#articleExcerpt').value,
+    author_name:$('#articleAuthor').value,
+    seo_title:$('#articleSeoTitle').value,
+    seo_description:$('#articleSeoDescription').value,
     body:$('#articleBody').value
   };
   try{

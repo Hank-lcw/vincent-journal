@@ -59,6 +59,9 @@
         <div class="field"><label>封面圖片</label><select id="articleCover"><option value="">尚未選擇</option></select></div>
         <label class="checkbox-field"><input id="articleFeatured" type="checkbox"><span>設為精選文章</span></label>
         <div class="field field-wide"><label>文章摘要</label><textarea id="articleExcerpt" maxlength="800"></textarea></div>
+        <div class="field"><label>作者署名（選填）</label><input id="articleAuthor" maxlength="80" placeholder="例：林哲緯；留白署名編輯部"></div>
+        <div class="field"><label>SEO 標題（選填）</label><input id="articleSeoTitle" maxlength="70" placeholder="留白沿用文章標題"></div>
+        <div class="field field-wide"><label>SEO 描述（選填，最多 180 字）</label><textarea id="articleSeoDescription" maxlength="180" placeholder="留白沿用文章摘要；以具體內容描述文章，不堆疊關鍵字"></textarea></div>
         <div class="field field-wide"><label>內文（支援基本 HTML）</label><textarea id="articleBody" class="article-editor-body"></textarea></div>
       </div>
       <div class="studio-actions editor-actions"><button class="btn primary" id="saveArticleBtn">儲存草稿</button><button class="btn" id="cancelArticleBtn">取消</button><span class="form-note" id="articleEditorMode"></span></div>

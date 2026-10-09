@@ -66,6 +66,8 @@ for(const htmlFile of ['public/index.html','public/discover.html','public/articl
   for(const m of html.matchAll(/(?:src|href)="([^"]+)"/g)){
     const u=m[1].split('?')[0].split('#')[0];
     if(!u||u==='/'||/^(https?:|mailto:|tel:|data:)/.test(u)) continue;
+    // /about/vincent-lin is a Worker-rendered SEO route, not a static asset.
+    if(u==='/about/vincent-lin' && seo.includes('url.pathname === PERSON_PATH')) continue;
     const rel=u.startsWith('/')?`public${u}`:`public/${u}`;
     if(!fs.existsSync(rel)) fail(`${htmlFile} references missing ${u}`);
   }

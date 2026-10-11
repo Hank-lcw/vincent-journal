@@ -3,7 +3,7 @@ import { requireRole } from './auth';
 import { audit } from './audit';
 import { nowIso, uuid } from './utils';
 
-const tables=['staff_users','articles','article_revisions','media_assets','issues','issue_articles','subscribers','suppressions','newsletter_campaigns','integrations','social_drafts','approvals','publish_jobs','audit_log'] as const;
+const tables=['staff_users','articles','article_revisions','media_assets','issues','issue_articles','editorial_people','subscribers','suppressions','newsletter_campaigns','integrations','social_drafts','approvals','publish_jobs','audit_log'] as const;
 
 export async function createBackup(env:Env):Promise<{id:string;object_key:string;counts:Record<string,number>}>{
   const id=uuid(),started=nowIso();

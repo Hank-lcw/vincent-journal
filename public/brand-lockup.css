@@ -32,14 +32,28 @@
   white-space:nowrap;
 }
 .site-header .vj-brand-secondary{
-  display:block;
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  align-self:center;
+  width:63%; /* reference: JOURNAL begins near VINCENT's I, ends near its second N */
   font-family:"DM Sans",Arial,sans-serif;
   font-weight:600;
   font-size:clamp(13px,1.48vw,18px);
   line-height:1.3;
-  letter-spacing:.55em;
-  padding-left:.55em; /* visually center an all-caps tracked word */
+  letter-spacing:0;
+  padding:0;
   white-space:nowrap;
+}
+/* Seven individual glyphs distribute letterspacing naturally across a fixed
+   relative width. This remains aligned as Bodoni font metrics change by viewport. */
+.site-header .vj-brand-secondary > span{
+  display:inline-block;
+  flex:0 0 auto;
+  font-weight:inherit;
+  font-size:inherit;
+  line-height:inherit;
+  letter-spacing:0;
 }
 .site-header .vj-brand-wordmark:focus-visible{outline:2px solid var(--vj-brand-noir);outline-offset:8px}
 
@@ -65,11 +79,11 @@
 @media(max-width:620px){
   .site-header .wordmark.vj-brand-wordmark{margin:24px auto 10px;gap:6px}
   .site-header .vj-brand-primary{font-size:clamp(37px,10.8vw,59px);letter-spacing:.052em}
-  .site-header .vj-brand-secondary{font-size:clamp(11px,3vw,15px);letter-spacing:.48em;padding-left:.48em}
+  .site-header .vj-brand-secondary{font-size:clamp(11px,3vw,15px)}
 }
 @media(max-width:360px){
   .site-header .vj-brand-primary{font-size:36px;letter-spacing:.045em}
-  .site-header .vj-brand-secondary{font-size:11px;letter-spacing:.41em;padding-left:.41em}
+  .site-header .vj-brand-secondary{font-size:11px}
 }
 @media(prefers-reduced-motion:reduce){
   /* Keep the masthead visible when the animated mask is disabled. */

@@ -39,11 +39,11 @@ function configure(force=false){
  // The two lines retain their original font outlines as the zoom mask.
  // textLength adjusts tracking, not glyph width, to match the editorial lockup.
  const primaryWidth=mobile?viewWidth*.90:1040;
- const secondaryWidth=mobile?viewWidth*.60:660;
+ const secondaryWidth=mobile?viewWidth*.63:700;
  const primarySize=mobile?viewWidth*.16:170;
- const secondarySize=mobile?viewWidth*.058:56;
+ const secondarySize=mobile?viewWidth*.062:60;
  const primaryBaseline=mobile?450:455;
- const secondaryBaseline=mobile?524:542;
+ const secondaryBaseline=mobile?528:545;
  letters.innerHTML=`<text class="vjp-title-line" x="${center}" y="${primaryBaseline}" text-anchor="middle" textLength="${primaryWidth}" lengthAdjust="spacing" font-size="${primarySize}">VINCENT</text><text class="vjp-journal-line" x="${center}" y="${secondaryBaseline}" text-anchor="middle" textLength="${secondaryWidth}" lengthAdjust="spacing" font-size="${secondarySize}">JOURNAL</text>`;
  inside.setAttribute('width',String(viewWidth));
  root.querySelector('#vjpDarkRect')?.setAttribute('width',String(viewWidth));

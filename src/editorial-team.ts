@@ -49,6 +49,7 @@ export async function listEditorialPeople(env:Env,admin=false):Promise<any[]>{
 export async function createEditorialPerson(env:Env,request:Request,user:AuthUser,input:any):Promise<any>{
   requireRole(user,'admin');
   const d=normalize(input);
+  if(d.is_primary)d.visible=1;
   await validatePhoto(env,d.photo_media_id);
   const id=uuid(),now=nowIso();
   if(d.is_primary) await env.DB.prepare('UPDATE editorial_people SET is_primary=0,updated_at=? WHERE is_primary=1').bind(now).run();
@@ -66,13 +67,11 @@ export async function updateEditorialPerson(env:Env,request:Request,user:AuthUse
   const current=await env.DB.prepare('SELECT * FROM editorial_people WHERE id=?').bind(id).first<any>();
   if(!current) throw new HttpError(404,'找不到編輯團隊成員');
   const d=normalize({...current,...input});
+  if(current.is_primary && !d.is_primary) throw new HttpError(409,'請先把另一位成員設為主編，再修改這位成員的版位');
+  if(d.is_primary)d.visible=1;
   await validatePhoto(env,d.photo_media_id);
   const now=nowIso();
   if(d.is_primary) await env.DB.prepare('UPDATE editorial_people SET is_primary=0,updated_at=? WHERE is_primary=1 AND id<>?').bind(now,id).run();
-  if(current.is_primary && !d.is_primary){
-    const other=await env.DB.prepare('SELECT id FROM editorial_people WHERE id<>? AND visible=1 ORDER BY sort_order LIMIT 1').bind(id).first<any>();
-    if(!other) throw new HttpError(409,'至少需要保留一位主編；請先把另一位成員設為主編');
-  }
   await env.DB.prepare(`UPDATE editorial_people SET
     name=?,english_name=?,title=?,education=?,experience=?,bio=?,photo_media_id=?,is_primary=?,visible=?,sort_order=?,updated_by=?,updated_at=?
     WHERE id=?`)

@@ -5,7 +5,7 @@ const selectors={
  portal_portrait:'#vjpInsidePortrait',
  editor_portrait:'.about-photo img',
  editor_stilllife:'.about-quote img',
- about_portrait:'#articleRoot .cover[data-site-visual="about_portrait"]'
+ about_portrait:'#articleRoot [data-site-visual="about_portrait"]'
 };
 let visuals=null;
 function apply(){

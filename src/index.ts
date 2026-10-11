@@ -13,6 +13,7 @@ import { listAdminIssues, getIssueArticlesAdmin, createIssue, updateIssue, setIs
 import { runDueJobs } from './jobs';
 import { checkOpenAI } from './openai';
 import { getSiteVisuals, assignSiteVisual } from './site-visuals';
+import { listEditorialPeople, createEditorialPerson, updateEditorialPerson, deleteEditorialPerson } from './editorial-team';
 import { handleSeoRoute } from './seo';
 
 function parts(pathname:string):string[]{ return pathname.split('/').filter(Boolean).map(decodeURIComponent); }
@@ -32,6 +33,7 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
   if(method==='GET' && publicHtmlAliases[p]){ const assetUrl=new URL(request.url); assetUrl.pathname=publicHtmlAliases[p]; return env.ASSETS.fetch(new Request(assetUrl.toString(),request)); }
 
   if(method==='GET' && p==='/api/public/site-visuals') return json({visuals:await getSiteVisuals(env)});
+  if(method==='GET' && p==='/api/public/editorial-team') return json({people:await listEditorialPeople(env,false)});
   if(method==='GET' && p==='/api/public/config') return json({turnstile_site_key:env.TURNSTILE_SECRET_KEY&&env.TURNSTILE_SITE_KEY?env.TURNSTILE_SITE_KEY:null});
   if(method==='GET' && p==='/api/public/articles') return json({articles:await listPublicArticles(env,url),managed:await areArticlesManaged(env)});
   if(method==='GET' && seg[0]==='api' && seg[1]==='public' && seg[2]==='articles' && seg[3]) return json({article:await getPublicArticle(env,seg[3])});
@@ -106,6 +108,13 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
         const input:any=await readJson(request).catch(()=>({}));
         return json({issue:await transitionIssue(env,request,user,id,seg[4] as any,String(input.note||''))});
       }
+    }
+
+    if(method==='GET' && p==='/api/admin/editorial-team') return json({people:await listEditorialPeople(env,true)});
+    if(method==='POST' && p==='/api/admin/editorial-team') return json({person:await createEditorialPerson(env,request,user,await readJson(request))},201);
+    if(seg[2]==='editorial-team' && seg[3]){
+      if(method==='PATCH' && seg.length===4) return json({person:await updateEditorialPerson(env,request,user,seg[3],await readJson(request))});
+      if(method==='DELETE' && seg.length===4) return json(await deleteEditorialPerson(env,request,user,seg[3]));
     }
 
     if(method==='GET' && p==='/api/admin/site-visuals') return json({visuals:await getSiteVisuals(env,true)});

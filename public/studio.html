@@ -18,6 +18,7 @@
   <nav class="studio-menu" id="studioMenu">
     <button class="active" data-view="dashboard">首頁總覽</button>
     <button data-view="articles">文章管理</button>
+    <button data-view="editorial">編輯團隊</button>
     <button data-view="issues">刊物管理</button>
     <button data-view="publish">發布中心</button>
     <button data-view="media">媒體工作室</button>
@@ -68,6 +69,35 @@
     </div>
     <div class="table-wrap" id="articlesTable"></div>
     <div id="revisionPanel" class="editor-card" hidden></div>
+  </div>
+</section>
+
+<section class="view" data-view="editorial">
+  <div class="panel">
+    <div class="panel-head">
+      <div><h2>編輯團隊</h2><p>主編會使用 About 頁的大版面；其他成員採較小的名錄版型。照片可留白。</p></div>
+      <div class="studio-actions"><button class="btn primary" id="newEditorialPersonBtn">＋ 新增成員</button><button class="btn" id="reloadEditorialTeamBtn">重新整理</button></div>
+    </div>
+    <div id="editorialPersonEditor" class="editor-card" hidden>
+      <div class="form-grid">
+        <div class="field"><label>姓名</label><input id="editorialName" maxlength="120"></div>
+        <div class="field"><label>英文姓名（選填）</label><input id="editorialEnglishName" maxlength="120"></div>
+        <div class="field"><label>職稱</label><input id="editorialTitle" maxlength="160" placeholder="例：主編 / Editor-in-Chief"></div>
+        <div class="field"><label>人像照片（選填）</label><select id="editorialPhoto"><option value="">不使用照片</option></select></div>
+        <div class="field"><label>排序</label><input id="editorialSort" type="number" min="0" max="9999" value="100"></div>
+        <label class="checkbox-field"><input id="editorialPrimary" type="checkbox"><span>設為主編（主版位）</span></label>
+        <label class="checkbox-field"><input id="editorialVisible" type="checkbox" checked><span>前台顯示</span></label>
+        <div class="field field-wide"><label>學歷</label><textarea id="editorialEducation" placeholder="可一行一項"></textarea></div>
+        <div class="field field-wide"><label>經歷</label><textarea id="editorialExperience" placeholder="可一行一項"></textarea></div>
+        <div class="field field-wide"><label>人物簡介（主編建議填寫；其他人可留白）</label><textarea id="editorialBio"></textarea></div>
+      </div>
+      <div class="studio-actions editor-actions">
+        <button class="btn primary" id="saveEditorialPersonBtn">儲存成員</button>
+        <button class="btn" id="cancelEditorialPersonBtn">取消</button>
+        <span class="form-note" id="editorialEditorMode"></span>
+      </div>
+    </div>
+    <div id="editorialTeamList" class="editorial-admin-list"></div>
   </div>
 </section>
 

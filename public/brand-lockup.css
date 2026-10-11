@@ -24,20 +24,21 @@
 .site-header .vj-brand-primary{
   display:block;
   font-family:"Bodoni Moda",Georgia,"Times New Roman",serif;
-  font-weight:400;
+  font-weight:500;
   font-size:clamp(43px,6.8vw,87px);
   line-height:1.08;
-  letter-spacing:.072em;
+  letter-spacing:.068em;
+  text-shadow:0 0 .008em currentColor; /* strengthen Bodoni hairlines without losing serif contrast */
   white-space:nowrap;
 }
 .site-header .vj-brand-secondary{
   display:block;
   font-family:"DM Sans",Arial,sans-serif;
-  font-weight:500;
-  font-size:clamp(11px,1.26vw,15px);
+  font-weight:600;
+  font-size:clamp(13px,1.48vw,18px);
   line-height:1.3;
-  letter-spacing:.64em;
-  padding-left:.64em; /* visually center an all-caps tracked word */
+  letter-spacing:.55em;
+  padding-left:.55em; /* visually center an all-caps tracked word */
   white-space:nowrap;
 }
 .site-header .vj-brand-wordmark:focus-visible{outline:2px solid var(--vj-brand-noir);outline-offset:8px}
@@ -49,13 +50,14 @@
 }
 .vj-portal-intro .vjp-title-line{
   font-family:"Bodoni Moda",Georgia,"Times New Roman",serif;
-  font-weight:400;
+  font-weight:500;
   letter-spacing:.02em;
+  stroke:#fff;stroke-width:.72px;paint-order:stroke fill;stroke-linejoin:round;
 }
 .vj-portal-intro .vjp-journal-line{
   font-family:"DM Sans",Arial,sans-serif;
-  font-weight:500;
-  letter-spacing:.28em;
+  font-weight:600;
+  letter-spacing:.25em;
 }
 .vj-portal-intro .vjp-static-brand{display:none}
 
@@ -63,11 +65,11 @@
 @media(max-width:620px){
   .site-header .wordmark.vj-brand-wordmark{margin:24px auto 10px;gap:6px}
   .site-header .vj-brand-primary{font-size:clamp(37px,10.8vw,59px);letter-spacing:.052em}
-  .site-header .vj-brand-secondary{font-size:clamp(10px,2.8vw,13px);letter-spacing:.52em;padding-left:.52em}
+  .site-header .vj-brand-secondary{font-size:clamp(11px,3vw,15px);letter-spacing:.48em;padding-left:.48em}
 }
 @media(max-width:360px){
   .site-header .vj-brand-primary{font-size:36px;letter-spacing:.045em}
-  .site-header .vj-brand-secondary{font-size:10px;letter-spacing:.45em;padding-left:.45em}
+  .site-header .vj-brand-secondary{font-size:11px;letter-spacing:.41em;padding-left:.41em}
 }
 @media(prefers-reduced-motion:reduce){
   /* Keep the masthead visible when the animated mask is disabled. */
@@ -82,11 +84,11 @@
     text-align:center;pointer-events:none;
   }
   .vj-portal-intro .vjp-static-brand strong{
-    font:400 clamp(40px,8vw,100px)/1.1 "Bodoni Moda",Georgia,serif;
+    font:500 clamp(40px,8vw,100px)/1.1 "Bodoni Moda",Georgia,serif;
     letter-spacing:.055em;
   }
   .vj-portal-intro .vjp-static-brand span{
-    font:500 clamp(11px,1.5vw,19px)/1.3 "DM Sans",sans-serif;
+    font:600 clamp(12px,1.6vw,20px)/1.3 "DM Sans",sans-serif;
     letter-spacing:.6em;padding-left:.6em;
   }
 }

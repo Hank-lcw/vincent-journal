@@ -25,7 +25,7 @@ const clamp=(n,a=0,b=1)=>Math.min(b,Math.max(a,n));
 const segment=(p,a,b)=>clamp((p-a)/(b-a));
 const ease=t=>t*t*(3-2*t);
 const lerp=(a,b,t)=>a+(b-a)*t;
-let mobile=false,viewWidth=1440,anchorX=345,anchorY=545,frame=0,lastPaint=0,lastProgress=-1,scrollRange=1,lastWidth=0;
+let mobile=false,viewWidth=1440,anchorX=530,anchorY=520,zoomTarget=78,frame=0,lastPaint=0,lastProgress=-1,scrollRange=1,lastWidth=0;
 function configure(force=false){
  if(motion.matches)return;
  mobile=matchMedia('(max-width:760px), (max-aspect-ratio: 4/5)').matches;
@@ -36,9 +36,15 @@ function configure(force=false){
  viewWidth=mobile?Math.round(900*w/h):1440;
  svg.setAttribute('viewBox',`0 0 ${viewWidth} 900`);
  const center=viewWidth/2;
- letters.innerHTML=mobile
-  ? `<text class="vjp-glyph-text" x="${center}" y="428" text-anchor="middle" textLength="${viewWidth*.91}" lengthAdjust="spacingAndGlyphs" font-size="${viewWidth*.225}">VINCENT</text><text class="vjp-glyph-text" x="${center}" y="530" text-anchor="middle" textLength="${viewWidth*.91}" lengthAdjust="spacingAndGlyphs" font-size="${viewWidth*.225}">JOURNAL</text>`
-  : '<text class="vjp-glyph-text" x="720" y="438" text-anchor="middle" textLength="1260" lengthAdjust="spacingAndGlyphs" font-size="205">VINCENT</text><text class="vjp-glyph-text" x="720" y="636" text-anchor="middle" textLength="1260" lengthAdjust="spacingAndGlyphs" font-size="205">JOURNAL</text>';
+ // The two lines retain their original font outlines as the zoom mask.
+ // textLength adjusts tracking, not glyph width, to match the editorial lockup.
+ const primaryWidth=mobile?viewWidth*.90:1040;
+ const secondaryWidth=mobile?viewWidth*.60:660;
+ const primarySize=mobile?viewWidth*.16:170;
+ const secondarySize=mobile?viewWidth*.058:56;
+ const primaryBaseline=mobile?450:455;
+ const secondaryBaseline=mobile?524:542;
+ letters.innerHTML=`<text class="vjp-title-line" x="${center}" y="${primaryBaseline}" text-anchor="middle" textLength="${primaryWidth}" lengthAdjust="spacing" font-size="${primarySize}">VINCENT</text><text class="vjp-journal-line" x="${center}" y="${secondaryBaseline}" text-anchor="middle" textLength="${secondaryWidth}" lengthAdjust="spacing" font-size="${secondarySize}">JOURNAL</text>`;
  inside.setAttribute('width',String(viewWidth));
  root.querySelector('#vjpDarkRect')?.setAttribute('width',String(viewWidth));
  root.querySelector('#vjpInsideTint')?.setAttribute('width',String(viewWidth));
@@ -47,13 +53,18 @@ function configure(force=false){
   const box=last.getExtentOfChar(1); // O in JOURNAL.
   anchorX=box.x+box.width/2;
   anchorY=box.y+box.height*.53;
+  // The new JOURNAL line is deliberately smaller. Scale farther so that its
+  // real O (index 1) still grows into a full-viewport portal, even on phones.
+  zoomTarget=clamp(viewWidth/Math.max(1,box.width)*3, mobile?48:62,mobile?86:108);
   const scale=Math.max(w/viewWidth,h/900);
   const crop=(h-900*scale)/2;
   const bottom=(last.getBBox().y+last.getBBox().height)*scale+crop;
   subtitle.style.top=Math.min(h-110,bottom+(mobile?21:28))+'px';
  }catch(_){
-  anchorX=viewWidth*.25;anchorY=mobile?495:560;
+  anchorX=viewWidth*.38;anchorY=mobile?506:522;
+  zoomTarget=mobile?60:78;
  }
+ lastProgress=-1; // reflow after font load/rotation must repaint current scroll stage
  render();
 }
 function render(time=0){
@@ -68,7 +79,7 @@ function render(time=0){
  inside.setAttribute('opacity',image.toFixed(4));
  insideDim.setAttribute('opacity',(image*.23).toFixed(3));
  const zoomPhase=ease(segment(p,.34,.74));
- const zoom=1+Math.pow(zoomPhase,1.75)*(mobile?15:27);
+ const zoom=1+Math.pow(zoomPhase,1.75)*(zoomTarget-1);
  const shift=ease(segment(p,.345,.615));
  const cx=lerp(anchorX,viewWidth/2,shift),cy=lerp(anchorY,450,shift);
  glyph.setAttribute('transform',`translate(${cx.toFixed(3)} ${cy.toFixed(3)}) scale(${zoom.toFixed(4)}) translate(${(-anchorX).toFixed(3)} ${(-anchorY).toFixed(3)})`);

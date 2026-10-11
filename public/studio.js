@@ -1,7 +1,7 @@
 (()=>{
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const e=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-let me=null, articlesCache=[], issuesCache=[], mediaCache=[], campaignsCache=[], socialDraftsCache=[], canvaDataset=null, canvaAssetCache={}, editingArticleId=null, editingIssueId=null, editMediaId=null, editingCampaignId=null, editingSocialId=null;
+let me=null, articlesCache=[], issuesCache=[], mediaCache=[], campaignsCache=[], socialDraftsCache=[], editorialTeamCache=[], canvaDataset=null, canvaAssetCache={}, editingArticleId=null, editingIssueId=null, editingEditorialId=null, editMediaId=null, editingCampaignId=null, editingSocialId=null;
 let socialMediaOrder=[], socialPreviewIndex=0, socialDragId=null, socialStoryboard=[];
 const roleRank={editor:10,reviewer:20,admin:30,owner:40};
 const canReview=()=>roleRank[me?.role]>=20, canAdmin=()=>roleRank[me?.role]>=30;
@@ -16,12 +16,13 @@ async function api(path,opt={}){
   return t;
 }
 function toast(m){const el=$('#toast');el.textContent=m;el.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>el.style.display='none',4200)}
-const titles={dashboard:'首頁總覽',articles:'文章管理',issues:'刊物管理',publish:'發布中心',media:'媒體工作室',newsletter:'電子報工作室',social:'社群發布工作室',system:'系統與權限'};
+const titles={dashboard:'首頁總覽',articles:'文章管理',editorial:'編輯團隊',issues:'刊物管理',publish:'發布中心',media:'媒體工作室',newsletter:'電子報工作室',social:'社群發布工作室',system:'系統與權限'};
 function show(v){
   $$('.view').forEach(x=>x.classList.toggle('active',x.dataset.view===v));
   $$('#studioMenu button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));
   $('#viewTitle').textContent=titles[v]||'VINCENT STUDIO';
   if(v==='articles')loadArticles();
+  if(v==='editorial')loadEditorialTeam();
   if(v==='issues')loadIssues();
   if(v==='publish')loadPublish();
   if(v==='media')loadMedia();
@@ -35,6 +36,7 @@ $$('[data-jump]').forEach(b=>b.onclick=()=>show(b.dataset.jump));
 async function loadStatus(){
   const d=await api('/studio/api/admin/system/status');
   me=d.user;
+  const editorialNav=$('#studioMenu button[data-view="editorial"]');if(editorialNav)editorialNav.hidden=!canAdmin();
   $('#welcome').textContent=`歡迎回來，${me.displayName||me.email} · ${me.role}`;
   $('#metricArticles').textContent=d.counts?.articles??0;
   $('#metricMedia').textContent=d.counts?.media??0;
@@ -86,6 +88,103 @@ function bindArticleActions(root=document){
   root.querySelectorAll?.('[data-revisions]').forEach(b=>b.onclick=()=>showRevisions(b.dataset.revisions));
   root.querySelectorAll?.('[data-delete-article]').forEach(b=>b.onclick=()=>deleteArticleFromStudio(b.dataset.deleteArticle));
 }
+function fillEditorialPhotoSelect(selected=''){
+  const select=$('#editorialPhoto');if(!select)return;
+  select.innerHTML='<option value="">不使用照片</option>'+mediaCache.map(m=>`<option value="${e(m.id)}" ${m.id===selected?'selected':''}>${e(m.filename)} · ${m.visibility==='public'?'公開':'私人'}</option>`).join('');
+}
+function resetEditorialEditor(){
+  editingEditorialId=null;
+  $('#editorialName').value='';
+  $('#editorialEnglishName').value='';
+  $('#editorialTitle').value='';
+  $('#editorialEducation').value='';
+  $('#editorialExperience').value='';
+  $('#editorialBio').value='';
+  $('#editorialSort').value='100';
+  $('#editorialPrimary').checked=false;
+  $('#editorialVisible').checked=true;
+  fillEditorialPhotoSelect('');
+  $('#editorialEditorMode').textContent='新增團隊成員';
+  $('#editorialPersonEditor').hidden=true;
+}
+async function openEditorialEditor(id=null){
+  if(!canAdmin())return toast('只有 Owner／Admin 可以管理編輯團隊');
+  await fetchMedia();
+  editingEditorialId=id;
+  const p=id?editorialTeamCache.find(x=>x.id===id):null;
+  $('#editorialName').value=p?.name||'';
+  $('#editorialEnglishName').value=p?.english_name||'';
+  $('#editorialTitle').value=p?.title||'';
+  $('#editorialEducation').value=p?.education||'';
+  $('#editorialExperience').value=p?.experience||'';
+  $('#editorialBio').value=p?.bio||'';
+  $('#editorialSort').value=String(p?.sort_order??(p?.is_primary?0:100));
+  $('#editorialPrimary').checked=Boolean(p?.is_primary);
+  $('#editorialVisible').checked=p?Boolean(p.visible):true;
+  fillEditorialPhotoSelect(p?.photo_media_id||'');
+  $('#editorialEditorMode').textContent=p?('正在編輯：'+p.name):'新增團隊成員';
+  $('#editorialPersonEditor').hidden=false;
+  $('#editorialPersonEditor').scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function saveEditorialPerson(){
+  if(!canAdmin())return;
+  const payload={
+    name:$('#editorialName').value,
+    english_name:$('#editorialEnglishName').value,
+    title:$('#editorialTitle').value,
+    education:$('#editorialEducation').value,
+    experience:$('#editorialExperience').value,
+    bio:$('#editorialBio').value,
+    photo_media_id:$('#editorialPhoto').value||null,
+    sort_order:Number($('#editorialSort').value||100),
+    is_primary:$('#editorialPrimary').checked,
+    visible:$('#editorialVisible').checked
+  };
+  try{
+    if(editingEditorialId)await api('/studio/api/admin/editorial-team/'+editingEditorialId,{method:'PATCH',body:JSON.stringify(payload)});
+    else await api('/studio/api/admin/editorial-team',{method:'POST',body:JSON.stringify(payload)});
+    toast(editingEditorialId?'成員資料已更新':'已新增團隊成員');
+    resetEditorialEditor();await loadEditorialTeam();
+  }catch(err){toast(err.message)}
+}
+async function deleteEditorialPerson(id){
+  const p=editorialTeamCache.find(x=>x.id===id);if(!p)return;
+  if(!confirm(`確定刪除「${p.name}」？`))return;
+  try{await api('/studio/api/admin/editorial-team/'+id,{method:'DELETE'});toast('成員已刪除');await loadEditorialTeam()}
+  catch(err){toast(err.message)}
+}
+function renderEditorialTeam(){
+  const root=$('#editorialTeamList');if(!root)return;
+  root.innerHTML=editorialTeamCache.length?editorialTeamCache.map(p=>`<article class="editorial-admin-row">
+    <div class="editorial-admin-photo">${p.photo_url?`<img src="${e(p.photo_url)}" alt="${e(p.name)}">`:'<span>NO PHOTO</span>'}</div>
+    <div class="editorial-admin-copy">
+      <div class="meta">${p.is_primary?'EDITOR-IN-CHIEF · ':''}${p.visible?'顯示中':'已隱藏'} · ORDER ${e(p.sort_order)}</div>
+      <h3>${e(p.name)}${p.english_name?`<span>${e(p.english_name)}</span>`:''}</h3>
+      <p><strong>${e(p.title||'未設定職稱')}</strong></p>
+      ${p.education?`<p>學歷｜${e(p.education).replace(/\n/g,' · ')}</p>`:''}
+      ${p.experience?`<p>經歷｜${e(p.experience).replace(/\n/g,' · ')}</p>`:''}
+    </div>
+    <div class="studio-actions">
+      <button class="btn" data-editorial-edit="${e(p.id)}">編輯</button>
+      ${!p.is_primary?`<button class="btn danger" data-editorial-delete="${e(p.id)}">刪除</button>`:''}
+    </div>
+  </article>`).join(''):'<p class="empty-state">尚未建立編輯團隊資料。</p>';
+  $$('[data-editorial-edit]').forEach(b=>b.onclick=()=>openEditorialEditor(b.dataset.editorialEdit));
+  $$('[data-editorial-delete]').forEach(b=>b.onclick=()=>deleteEditorialPerson(b.dataset.editorialDelete));
+}
+async function loadEditorialTeam(){
+  if(!canAdmin())return;
+  try{
+    const [d]=await Promise.all([api('/studio/api/admin/editorial-team'),fetchMedia()]);
+    editorialTeamCache=d.people||[];
+    renderEditorialTeam();
+  }catch(err){toast(err.message)}
+}
+$('#newEditorialPersonBtn').onclick=()=>openEditorialEditor();
+$('#reloadEditorialTeamBtn').onclick=loadEditorialTeam;
+$('#saveEditorialPersonBtn').onclick=saveEditorialPerson;
+$('#cancelEditorialPersonBtn').onclick=resetEditorialEditor;
+
 async function deleteArticleFromStudio(id){
   const a=articlesCache.find(x=>x.id===id); if(!a)return;
   const extra=a.status==='published'?'\n\n這篇文章目前已發布；刪除後會立即從前台移除，引用它的期刊會退回草稿。':'';

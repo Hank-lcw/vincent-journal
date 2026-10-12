@@ -541,9 +541,9 @@ function renderMedia(){
     $('#aiEditPanel').scrollIntoView({behavior:'smooth',block:'start'});
   });
   $$('[data-media-tools]').forEach(b=>b.onclick=()=>openMediaTools(b.dataset.mediaTools,false));
-  $('[data-media-compare]').forEach(b=>b.onclick=()=>openMediaTools(b.dataset.mediaCompare,true));
-  $('[data-media-analyze]').forEach(b=>b.onclick=()=>analyzeMediaName(b.dataset.mediaAnalyze,b));
-  $('[data-media-delete]').forEach(b=>b.onclick=()=>deleteMediaFromStudio(b.dataset.mediaDelete));
+  $$('[data-media-compare]').forEach(b=>b.onclick=()=>openMediaTools(b.dataset.mediaCompare,true));
+  $$('[data-media-analyze]').forEach(b=>b.onclick=()=>analyzeMediaName(b.dataset.mediaAnalyze,b));
+  $$('[data-media-delete]').forEach(b=>b.onclick=()=>deleteMediaFromStudio(b.dataset.mediaDelete));
   $$('[data-media-social]').forEach(s=>s.onchange=async()=>{
     const platform=s.value;if(!platform)return;
     s.disabled=true;

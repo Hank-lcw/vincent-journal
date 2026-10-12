@@ -422,7 +422,7 @@ function mediaSourceLabel(m){
   if(m?.metadata?.derivative)return m.metadata.preset==='instagram-4x5'?'IG 4:5':m.metadata.preset==='instagram-1x1'?'IG 1:1':m.metadata.preset==='journal-16x9'?'Journal 16:9':'衍生版本';
   return ({upload:'上傳',ai_generate:'AI 原圖',ai_edit:'AI 修改',canva:'Canva',import:'衍生'})[m?.source]||m?.source||'素材';
 }
-function mediaUsageCount(m){return Number(m?.article_refs||0)+Number(m?.issue_refs||0)+Number(m?.social_refs||0)+Number(m?.site_refs||0)}
+function mediaUsageCount(m){return Number(m?.article_refs||0)+Number(m?.issue_refs||0)+Number(m?.social_refs||0)+Number(m?.site_refs||0)+Number(m?.editorial_refs||0)}
 function rootMediaId(id){
   let current=id,guard=0;
   while(guard++<30){
@@ -505,6 +505,7 @@ function renderMedia(){
       `<span class="media-chip">${m.visibility==='public'?'公開':'私人'}</span>`,
       family.length>1?`<span class="media-chip">V${mediaFamilyIndex(m)} / ${family.length}</span>`:'',
       usage?`<span class="media-chip media-chip-live">使用中 ${usage}</span>`:'',
+      Number(m.editorial_refs||0)?`<span class="media-chip">編輯團隊 ${Number(m.editorial_refs||0)}</span>`:'',
       children?`<span class="media-chip">衍生 ${children}</span>`:''
     ].join('');
     return `<article class="media-card" data-media-card="${e(m.id)}">
@@ -672,7 +673,7 @@ async function analyzeMediaName(id,button=null,quiet=false){
 
 async function deleteMediaFromStudio(id){
   const m=mediaCache.find(x=>x.id===id); if(!m)return;
-  if(mediaUsageCount(m)>0)return toast('這張素材仍被前台網站、文章、刊物或社群草稿使用，不能刪除');
+  if(mediaUsageCount(m)>0)return toast('這張素材仍被網站視覺、文章、刊物、社群草稿或編輯團隊使用，請先解除引用後再刪除');
   if(Number(m.child_count||0)>0)return toast('這張素材仍有衍生版本，請先刪除衍生版本');
   const versionNote=m.parent_media_id?'\n\n這是衍生版本；原圖會保留。':'';
   if(!window.confirm(`確定永久刪除「${m.filename}」？\n\nR2 圖檔與素材紀錄都會刪除，且無法復原。${versionNote}`))return;

@@ -14,7 +14,8 @@ export async function listMedia(env: Env): Promise<any[]> {
       (SELECT COUNT(*) FROM articles a WHERE a.cover_media_id=m.id) AS article_refs,
       (SELECT COUNT(*) FROM issues i WHERE i.cover_media_id=m.id) AS issue_refs,
       (SELECT COUNT(*) FROM social_drafts s WHERE s.media_ids_json LIKE '%"' || m.id || '"%') AS social_refs,
-      (SELECT COUNT(*) FROM site_settings v WHERE v.key LIKE 'site_visual_%' AND v.value=m.id) AS site_refs
+      (SELECT COUNT(*) FROM site_settings v WHERE v.key LIKE 'site_visual_%' AND v.value=m.id) AS site_refs,
+      (SELECT COUNT(*) FROM editorial_people p WHERE p.photo_media_id=m.id) AS editorial_refs
     FROM media_assets m
     ORDER BY m.created_at DESC
     LIMIT 500
@@ -27,7 +28,8 @@ export async function listMedia(env: Env): Promise<any[]> {
     article_refs: Number(r.article_refs || 0),
     issue_refs: Number(r.issue_refs || 0),
     social_refs: Number(r.social_refs || 0),
-    site_refs: Number(r.site_refs || 0)
+    site_refs: Number(r.site_refs || 0),
+    editorial_refs: Number(r.editorial_refs || 0)
   }));
 }
 
@@ -240,6 +242,8 @@ export async function setMediaVisibility(env: Env, request: Request, user: AuthU
   if (visibility === 'private') {
     const siteUse = await env.DB.prepare("SELECT key FROM site_settings WHERE key LIKE 'site_visual_%' AND value=? LIMIT 1").bind(id).first<any>();
     if(siteUse) throw new HttpError(409,'此圖片正被網站前台使用。請先在網站視覺素材中解除指定');
+    const editorialUse = await env.DB.prepare(`SELECT id,name FROM editorial_people WHERE photo_media_id=? LIMIT 1`).bind(id).first<any>();
+    if(editorialUse) throw new HttpError(409,`這張圖片正被編輯團隊「${editorialUse.name}」使用，不能改為私人`);
     const articleUse = await env.DB.prepare(`SELECT id,title FROM articles WHERE cover_media_id=? AND status='published' LIMIT 1`).bind(id).first<any>();
     if (articleUse) throw new HttpError(409,`這張圖片正被已發布文章「${articleUse.title}」使用，不能改為私人`);
     const issueUse = await env.DB.prepare(`SELECT id,title,volume FROM issues WHERE cover_media_id=? AND status='published' LIMIT 1`).bind(id).first<any>();
@@ -271,6 +275,9 @@ export async function deleteMedia(env: Env, request: Request, user: AuthUser, id
 
   const social = await env.DB.prepare(`SELECT id,title,platform FROM social_drafts WHERE media_ids_json LIKE ? LIMIT 1`).bind(`%"${id}"%`).first<any>();
   if (social) throw new HttpError(409, `這張素材正被 ${social.platform} 社群草稿「${social.title || social.id}」使用，不能刪除`);
+
+  const editorial = await env.DB.prepare(`SELECT id,name FROM editorial_people WHERE photo_media_id=? LIMIT 1`).bind(id).first<any>();
+  if (editorial) throw new HttpError(409, `這張素材正被編輯團隊「${editorial.name}」作為人物照片使用，不能刪除`);
 
   await env.MEDIA.delete(asset.object_key);
   await env.DB.prepare(`DELETE FROM media_assets WHERE id=?`).bind(id).run();

@@ -38,7 +38,7 @@ function configure(force=false){
  const center=viewWidth/2;
  // Both lines use the same 2-line composition as the site masthead;
  // the smaller JOURNAL line remains the target of the scroll-through mask.
- const titleWidth=mobile?viewWidth*.86:960;
+ const titleWidth=mobile?viewWidth*.93:960;
  const titleSize=mobile?viewWidth*.205:174;
  const journalWidth=titleWidth*.59;
  const journalSize=mobile?Math.max(13,viewWidth*.040):37;

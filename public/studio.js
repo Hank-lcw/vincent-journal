@@ -5,7 +5,7 @@ let me=null, articlesCache=[], issuesCache=[], mediaCache=[], campaignsCache=[],
 let socialMediaOrder=[], socialPreviewIndex=0, socialDragId=null, socialStoryboard=[];
 const roleRank={editor:10,reviewer:20,admin:30,owner:40};
 const canReview=()=>roleRank[me?.role]>=20, canAdmin=()=>roleRank[me?.role]>=30;
-const categoryLabel=s=>({aesthetics:'美學觀點','healthy-aging':'健康老化',longevity:'長壽科學'})[s]||s;
+const categoryLabel=s=>({aesthetics:'美學觀點','healthy-aging':'健康老化',longevity:'長壽科學',perspectives:'產業觀察'})[s]||s;
 const statusLabel=s=>({draft:'草稿',in_review:'待審',approved:'已核准',published:'已發布',archived:'已封存',scheduled:'已排程',sending:'寄送中',sent:'已寄送',failed:'失敗',ready_to_publish:'待人工發布'})[s]||s;
 
 async function api(path,opt={}){

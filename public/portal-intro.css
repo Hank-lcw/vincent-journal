@@ -12,7 +12,7 @@
 .vj-portal-intro .vjp-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 53%,#fbf8f1 0%,#f3efe7 61%,#e8ded1 100%)}
 .vj-portal-intro .vjp-svg{position:absolute;inset:0;width:100%;height:100%;z-index:2;overflow:visible;pointer-events:none}
 /* Signature lockup shared with the journal masthead: serif VINCENT / tracked sans JOURNAL. */
-.vj-portal-intro .vjp-glyph-text{font-family:"Bodoni Moda",Georgia,"Times New Roman",serif;font-weight:500;letter-spacing:.04em}
+.vj-portal-intro .vjp-glyph-text{font-family:"Bodoni Moda",Georgia,"Times New Roman",serif;font-weight:500;letter-spacing:.04em;stroke:#fff;stroke-width:3px;stroke-linejoin:round;stroke-linecap:round;paint-order:stroke fill}
 .vj-portal-intro .vjp-glyph-journal{font-family:"DM Sans",Arial,sans-serif;font-weight:600;letter-spacing:.35em}
 .vj-portal-intro .vjp-cover{position:absolute;inset:-3%;z-index:3;opacity:0;background:#d6c7b7 var(--vjp-cover-image,url("assets/vj-portal-warm-portrait.svg")) center center/cover no-repeat;transform:scale(1.065);will-change:opacity,transform;pointer-events:none}
 .vj-portal-intro .vjp-cover-shade{position:absolute;inset:0;z-index:4;opacity:0;background:linear-gradient(90deg,rgba(244,238,228,.58),transparent 77%),linear-gradient(0deg,rgba(246,241,232,.77),transparent 58%);pointer-events:none}

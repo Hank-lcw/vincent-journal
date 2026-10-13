@@ -1,9 +1,9 @@
 import type { Env, AuthUser } from './types';
 import { HttpError, json, readJson, securityHeaders } from './http';
-import { requireUser } from './auth';
+import { requireUser, requireRole } from './auth';
 import { listStaff, upsertStaff, updateStaff } from './staff';
 import { listAdminArticles, listPublicArticles, getPublicArticle, createArticle, updateArticle, transitionArticle, listArticleRevisions, restoreArticleRevision, deleteArticle, areArticlesManaged } from './articles';
-import { listMedia, uploadMedia, serveMedia, generateImage, editImage, analyzeMedia, setMediaVisibility, deleteMedia } from './media';
+import { listMedia, diagnoseMediaStorage, uploadMedia, serveMedia, generateImage, editImage, analyzeMedia, setMediaVisibility, deleteMedia } from './media';
 import { subscribe, verifySubscription, unsubscribe, handleResendWebhook, listSubscribers, listNewsletterCampaigns, createNewsletterCampaign, updateNewsletterCampaign, submitNewsletter, rejectNewsletter, approveNewsletter, sendNewsletter, getResendDomainStatus, generateNewsletterContent } from './newsletter';
 import { listIntegrations, startOAuth, handleOAuthCallback, disconnectIntegration, systemIntegrationStatus } from './integrations';
 import { listBrandTemplates, brandTemplateDataset, createAutofill, getAutofillJob, attachCanvaDesign, uploadPublicAssetToCanva, getCanvaAssetUploadJob } from './canva';
@@ -119,6 +119,10 @@ async function route(request:Request,env:Env,ctx:ExecutionContext):Promise<Respo
 
     if(method==='GET' && p==='/api/admin/site-visuals') return json({visuals:await getSiteVisuals(env,true)});
     if(method==='PUT' && seg[2]==='site-visuals' && seg[3] && seg.length===4) return json({visuals:await assignSiteVisual(env,request,user,seg[3],await readJson(request))});
+    if(method==='GET' && p==='/api/admin/media/health') {
+      requireRole(user,'admin');
+      return json({health:await diagnoseMediaStorage(env)});
+    }
     if(method==='GET' && p==='/api/admin/media') return json({media:await listMedia(env)});
     if(method==='POST' && p==='/api/admin/media/upload') return json({media:await uploadMedia(env,request,user)},201);
     if(method==='POST' && p==='/api/admin/media/generate') return json({media:await generateImage(env,request,user,await readJson(request))},201);

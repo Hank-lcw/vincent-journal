@@ -8,7 +8,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Instrument+Serif&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<script defer src="studio.js"></script><link rel="stylesheet" href="studio-site-visuals.css">
+<link rel="stylesheet" href="editorial-workflow.css">
+<script defer src="studio.js"></script>
+<script defer src="editorial-workflow.js"></script><link rel="stylesheet" href="studio-site-visuals.css">
 </head>
 <body class="studio-body">
 <div class="studio-shell">
@@ -123,21 +125,33 @@
 </section>
 
 <section class="view" data-view="publish">
+<div class="panel vj-editorial-flow" id="vjEditorialFlowPublish">
+<div class="vj-editorial-head"><div><div class="vj-editorial-kicker">VINCENT JOURNAL / RELEASE DESK</div><h2>最後一道編輯關卡</h2><p>網站、社群與電子報分別核准與發布；請確認每個平台的實際執行狀態。</p></div><span class="vj-editorial-mark" aria-hidden="true">V.</span></div>
+<div class="vj-editorial-steps" role="group" aria-label="編輯發布流程">
+  <button type="button" class="vj-editorial-step" data-vj-go="articles"><span class="vj-num">01 / STORY</span><strong>建立內容</strong><small>文章與專題草稿、來源與事實</small></button>
+  <button type="button" class="vj-editorial-step" data-vj-go="media" data-vj-target="mediaFile"><span class="vj-num">02 / VISUAL</span><strong>視覺與封面</strong><small>圖片上傳、版本、裁切及編輯風格</small></button>
+  <button type="button" class="vj-editorial-step" data-vj-go="social" data-vj-target="socialEditorPanel"><span class="vj-num">03 / COMPOSE</span><strong>平台編排預覽</strong><small>輪播、Canva 版型與各平台文案</small></button>
+  <button type="button" class="vj-editorial-step" data-vj-go="publish"><span class="vj-num">04 / RELEASE</span><strong>審核與發布</strong><small>檢查、核准及各平台交付結果</small></button>
+</div>
+<div class="vj-editorial-tools"><span class="vj-guide-label">快速操作</span><button class="btn" type="button" data-vj-go="social" data-vj-target="socialEditorPanel">返回平台預覽</button><button class="btn" type="button" data-vj-go="media" data-vj-target="mediaGrid">查看圖片來源</button></div>
+<p class="form-note">工作區切換前請先儲存草稿；各平台具有獨立的審核與發布狀態，不會因為文章上線而自動視為社群已發布。</p>
+</div>
+<div class="vj-publish-note">發布前人工核對：醫學資訊與研究來源、肖像／圖片授權、標題與封面一致性、平台文字差異、是否涉及療效宣稱。小紅書應依既有 Ready-to-Publish 流程交付，不假定已自動發布。</div>
   <div class="panel"><h2>發布中心</h2><p>待審與已核准文章會集中在這裡。Owner／Reviewer 可以直接核准並發布。</p><div id="approvalSummary"></div></div>
 </section>
 
 <section class="view" data-view="media">
-  <div class="panel vj-site-visual-manager">
-    <div class="panel-head">
-      <div><div class="meta">SITE IMAGE MANAGER</div><h2>網站視覺素材</h2>
-      <p>管理前台非文章圖片：開場人物、編輯者圖片、靜物與 About 封面。可選擇素材庫圖片，或直接上傳並套用；按「恢復預設」解除圖片指定，不會影響文章附圖。</p></div>
-      <button class="btn" id="refreshSiteVisualsBtn" type="button">重新整理</button>
-    </div>
-    <div id="siteVisualGrid" class="vj-site-visual-grid" aria-live="polite">
-      <p class="form-note">正在載入網站圖片設定…</p>
-    </div>
-    <p class="form-note">網站使用中的圖片會受到刪除保護。需要永久刪除時，先解除圖片指定，再至下方媒體素材庫刪除未使用的檔案。</p>
-  </div>
+<div class="panel vj-editorial-flow" id="vjEditorialFlowMedia">
+<div class="vj-editorial-head"><div><div class="vj-editorial-kicker">VINCENT JOURNAL / EDITORIAL PRODUCTION</div><h2>從素材到雜誌封面</h2><p>保留原圖與衍生版本。先選擇編輯風格，再裁切、編排輪播，最後到社群發布工作室預覽。</p></div><span class="vj-editorial-mark" aria-hidden="true">V.</span></div>
+<div class="vj-editorial-steps" role="group" aria-label="編輯發布流程">
+  <button type="button" class="vj-editorial-step" data-vj-go="articles"><span class="vj-num">01 / STORY</span><strong>建立內容</strong><small>文章與專題草稿、來源與事實</small></button>
+  <button type="button" class="vj-editorial-step" data-vj-go="media" data-vj-target="mediaFile"><span class="vj-num">02 / VISUAL</span><strong>視覺與封面</strong><small>圖片上傳、版本、裁切及編輯風格</small></button>
+  <button type="button" class="vj-editorial-step" data-vj-go="social" data-vj-target="socialEditorPanel"><span class="vj-num">03 / COMPOSE</span><strong>平台編排預覽</strong><small>輪播、Canva 版型與各平台文案</small></button>
+  <button type="button" class="vj-editorial-step" data-vj-go="publish"><span class="vj-num">04 / RELEASE</span><strong>審核與發布</strong><small>檢查、核准及各平台交付結果</small></button>
+</div>
+<div class="vj-editorial-tools"><span class="vj-guide-label">快速操作</span><button class="btn primary" type="button" data-vj-go="media" data-vj-target="mediaFile">上傳原始圖片</button><button class="btn" type="button" data-vj-go="media" data-vj-target="aiPrompt">AI 圖像提案</button><button class="btn" type="button" data-vj-go="media" data-vj-target="mediaGrid">瀏覽素材庫</button><button class="btn" type="button" data-vj-go="social" data-vj-target="canvaPanel">前往 Canva 編輯</button></div>
+<p class="form-note">工作區切換前請先儲存草稿；各平台具有獨立的審核與發布狀態，不會因為文章上線而自動視為社群已發布。</p>
+</div>
   <div class="panel">
     <div class="panel-head">
       <div>
@@ -146,6 +160,14 @@
       </div>
       <div class="media-workflow-note">ORIGINAL → VERSION → FORMAT</div>
     </div>
+
+    <div class="vj-editorial-style-head"><div><div class="meta">COVER DIRECTION</div><h3>選擇雜誌視覺方向</h3></div><p>只協助填寫 AI 視覺描述，不會直接產生或修改圖片</p></div>
+    <div class="vj-editorial-styles" role="group" aria-label="雜誌視覺方向">
+      <button type="button" class="vj-editorial-style" data-vj-style="portrait"><span class="vj-style-kicker">01 / PORTRAIT</span><strong>人物與美學專題</strong><span>真實材質、人物主體、標題留白</span></button>
+      <button type="button" class="vj-editorial-style" data-vj-style="science"><span class="vj-style-kicker">02 / SCIENCE</span><strong>醫學與長壽研究</strong><span>醫學視覺隱喻、精準且不誇大</span></button>
+      <button type="button" class="vj-editorial-style" data-vj-style="lifestyle"><span class="vj-style-kicker">03 / CULTURE</span><strong>健康與生活美學</strong><span>影像敘事、安靜情緒、留白構圖</span></button>
+    </div>
+    <p class="vj-editorial-advice" id="vjMediaStyleNote" role="status">圖片主導、文字克制。封面文字排版可在後續 Canva 模板完成；這裡先決定視覺方向。</p>
 
     <div class="media-input-grid">
       <div class="media-input-block">
@@ -249,6 +271,18 @@
     </div>
     <div id="mediaGrid" class="media-grid"></div>
   </div>
+  <!-- Secondary, existing fixed-site image placements; keep all controls unchanged. -->
+  <div class="panel vj-site-visual-manager">
+    <div class="panel-head">
+      <div><div class="meta">SITE IMAGE MANAGER</div><h2>網站視覺素材</h2>
+      <p>管理前台非文章圖片：開場人物、編輯者圖片、靜物與 About 封面。可選擇素材庫圖片，或直接上傳並套用；按「恢復預設」解除圖片指定，不會影響文章附圖。</p></div>
+      <button class="btn" id="refreshSiteVisualsBtn" type="button">重新整理</button>
+    </div>
+    <div id="siteVisualGrid" class="vj-site-visual-grid" aria-live="polite">
+      <p class="form-note">正在載入網站圖片設定…</p>
+    </div>
+    <p class="form-note">網站使用中的圖片會受到刪除保護。需要永久刪除時，先解除圖片指定，再至下方媒體素材庫刪除未使用的檔案。</p>
+  </div>
 </section>
 
 <section class="view" data-view="newsletter">
@@ -280,6 +314,17 @@
 </section>
 
 <section class="view" data-view="social">
+<div class="panel vj-editorial-flow" id="vjEditorialFlowSocial">
+<div class="vj-editorial-head"><div><div class="vj-editorial-kicker">VINCENT JOURNAL / SOCIAL EDITION</div><h2>為每個平台排一個版本</h2><p>先完成來源文章或獨立貼文，再挑選圖片、安排封面與順序、生成平台適配文案，確認右側首屏後送審。</p></div><span class="vj-editorial-mark" aria-hidden="true">V.</span></div>
+<div class="vj-editorial-steps" role="group" aria-label="編輯發布流程">
+  <button type="button" class="vj-editorial-step" data-vj-go="articles"><span class="vj-num">01 / STORY</span><strong>建立內容</strong><small>文章與專題草稿、來源與事實</small></button>
+  <button type="button" class="vj-editorial-step" data-vj-go="media" data-vj-target="mediaFile"><span class="vj-num">02 / VISUAL</span><strong>視覺與封面</strong><small>圖片上傳、版本、裁切及編輯風格</small></button>
+  <button type="button" class="vj-editorial-step" data-vj-go="social" data-vj-target="socialEditorPanel"><span class="vj-num">03 / COMPOSE</span><strong>平台編排預覽</strong><small>輪播、Canva 版型與各平台文案</small></button>
+  <button type="button" class="vj-editorial-step" data-vj-go="publish"><span class="vj-num">04 / RELEASE</span><strong>審核與發布</strong><small>檢查、核准及各平台交付結果</small></button>
+</div>
+<div class="vj-editorial-tools"><span class="vj-guide-label">快速操作</span><button class="btn primary" type="button" data-vj-go="social" data-vj-target="socialTitle">開始編輯草稿</button><button class="btn" type="button" data-vj-go="social" data-vj-target="socialCarousel">調整輪播封面</button><button class="btn" type="button" data-vj-go="social" data-vj-target="canvaPanel">Canva 雜誌封面</button><button class="btn" type="button" data-vj-go="publish">前往審核中心</button></div>
+<p class="form-note">工作區切換前請先儲存草稿；各平台具有獨立的審核與發布狀態，不會因為文章上線而自動視為社群已發布。</p>
+</div>
   <div class="panel"><h2>社群發布工作室</h2><p>Instagram、Facebook、Threads、小紅書各自使用不同內容邏輯；不把同一份文字複製四次。</p><div id="socialStatus"></div></div>
   <div class="panel" id="socialEditorPanel">
     <div class="panel-head"><div><h2 id="socialEditorTitle">建立社群草稿</h2><p>編輯內容時右側會即時模擬平台首屏，實際平台介面與截斷規則仍以發布當下為準。</p></div></div>
@@ -335,6 +380,9 @@
           <div id="socialPreview" class="social-preview-content"></div>
         </div>
         <div id="socialPreviewChecks" class="social-preview-checks"></div>
+         <div class="meta" style="margin-top:12px">EDITORIAL PREFLIGHT / 即時提醒</div>
+         <div id="vjSocialPreflight" class="vj-social-readiness" aria-live="polite"></div>
+         <p class="form-note">此區僅檢查編輯器的基本輸入；圖片授權、醫學證據及療效宣稱仍須人工確認。</p>
         <p class="form-note">這是 VINCENT STUDIO 的版面與閱讀密度模擬，不是平台官方 UI。</p>
       </aside>
     </div>

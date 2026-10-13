@@ -1,0 +1,35 @@
+/* Editorial workflow layer for VINCENT STUDIO — additive; does not replace existing tools. */
+.vj-editorial-flow{background:linear-gradient(120deg,#fcfaf5,#f5f3ed);border:1px solid #e2ded5}
+.vj-editorial-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:18px}
+.vj-editorial-head .vj-editorial-kicker{font-size:10px;letter-spacing:.18em;color:#687160}
+.vj-editorial-head h2{font-family:var(--serif);font-size:clamp(28px,3.1vw,37px);line-height:1.2;margin:5px 0 8px;font-weight:400}
+.vj-editorial-head p{margin:0;color:#65645f;font-size:13px;line-height:1.75;max-width:68ch}
+.vj-editorial-mark{display:block;font-family:var(--serif);font-size:38px;line-height:1;color:#8b9384;flex:0 0 auto}
+.vj-editorial-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.vj-editorial-step{display:flex;flex-direction:column;gap:6px;text-align:left;border:1px solid #dfdbd2;background:#fffefa;border-radius:8px;padding:14px;min-height:110px;cursor:pointer;transition:border-color .15s,background .15s,transform .15s}
+.vj-editorial-step:hover,.vj-editorial-step:focus-visible{border-color:#818c77;background:#f5f6f0;transform:translateY(-1px);outline-offset:2px}
+.vj-editorial-step .vj-num{font-size:10px;letter-spacing:.12em;color:#69725f}
+.vj-editorial-step strong{font-size:13px;line-height:1.4;font-weight:600}
+.vj-editorial-step small{font-size:11px;line-height:1.55;color:#73736e}
+.vj-editorial-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:12px;border-top:1px solid #e6e2d9}
+.vj-editorial-tools .vj-guide-label{font-size:11px;color:#717069;margin-right:3px}
+.vj-editorial-tools button{font-size:12px}
+.vj-editorial-style-head{display:flex;gap:10px;justify-content:space-between;align-items:baseline;margin:22px 0 12px}
+.vj-editorial-style-head h3{font-family:var(--serif);font-size:24px;font-weight:400;margin:0}
+.vj-editorial-style-head p{font-size:11px;color:#77746e;margin:0}
+.vj-editorial-styles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.vj-editorial-style{border:1px solid #dedbd3;border-radius:7px;background:#fff;cursor:pointer;text-align:left;padding:13px;display:grid;gap:5px;color:#262821}
+.vj-editorial-style:hover,.vj-editorial-style:focus-visible{border-color:#78816d;background:#f4f4ee}
+.vj-editorial-style .vj-style-kicker{font-size:9px;letter-spacing:.18em;color:#6e776c}
+.vj-editorial-style strong{font-size:13px}
+.vj-editorial-style span:last-child{font-size:11px;color:#74736c;line-height:1.65}
+.vj-editorial-advice{margin:9px 0 0;font-size:11px;color:#666e60}
+.vj-publish-note{padding:12px 15px;border-radius:6px;background:#f0f1e9;font-size:12px;line-height:1.75;color:#545b4e;margin:12px 0}
+.vj-social-readiness{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.vj-check{display:flex;gap:8px;align-items:flex-start;background:#f7f5f0;border:1px solid #e8e4dc;padding:9px 10px;border-radius:6px;font-size:12px;color:#55554f}
+.vj-check::before{content:"—";display:inline-grid;place-items:center;flex:none;width:18px;height:18px;border-radius:50%;background:#e3e0d9;color:#686861;font-size:11px}
+.vj-check.is-ready::before{content:"✓";background:#dfe9da;color:#435d40}
+.vj-check.is-attention::before{content:"!";background:#f3e5cb;color:#87633d}
+.vj-social-readiness + .form-note{margin-top:9px}
+@media(max-width:980px){.vj-editorial-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.vj-editorial-head{gap:8px}.vj-editorial-mark{font-size:27px}.vj-editorial-steps,.vj-editorial-styles,.vj-social-readiness{grid-template-columns:1fr}.vj-editorial-step{min-height:0}.vj-editorial-style-head{display:block}.vj-editorial-style-head p{margin-top:3px}}

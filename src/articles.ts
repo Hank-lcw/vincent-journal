@@ -5,7 +5,7 @@ import { requireRole } from './auth';
 import { audit } from './audit';
 import { queueArticleNewsletter } from './newsletter';
 
-const categories = new Set(['aesthetics','healthy-aging','longevity']);
+const categories = new Set(['aesthetics','healthy-aging','longevity','perspectives']);
 
 function readHtmlAttr(raw:string,name:string):string|null {
   const re=new RegExp("\\b"+name+"\\s*=\\s*(?:\\\"([^\\\"]*)\\\"|'([^']*)'|([^\\s\\\"'=<>]+))","i");

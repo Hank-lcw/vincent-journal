@@ -6,6 +6,32 @@ import { nowIso, safeJson, uuid } from './utils';
 const allowedImageTypes = new Set(['image/jpeg','image/png','image/webp','image/avif']);
 const MAX_UPLOAD = 15 * 1024 * 1024;
 
+
+/** Read-only Media Library integrity check. Limited sample; never mutates R2 or D1. */
+export async function diagnoseMediaStorage(env: Env): Promise<any> {
+  const stats=await env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN visibility='public' THEN 1 ELSE 0 END) AS public_count FROM media_assets").first<any>();
+  const rows=await env.DB.prepare("SELECT id, object_key, visibility FROM media_assets ORDER BY created_at DESC LIMIT 12").all<any>();
+  let missing=0, errors=0;
+  const samples=await Promise.all((rows.results||[]).map(async row=>{
+    try{
+      const object=await env.MEDIA.head(row.object_key);
+      if(!object) missing++;
+      return { id:row.id, visibility:row.visibility, r2_exists:Boolean(object) };
+    }catch(_){
+      errors++;
+      return { id:row.id, visibility:row.visibility, r2_exists:null };
+    }
+  }));
+  return {
+    media_records:Number(stats?.total||0),
+    public_records:Number(stats?.public_count||0),
+    checked:samples.length,
+    r2_missing_in_sample:missing,
+    r2_errors_in_sample:errors,
+    samples
+  };
+}
+
 export async function listMedia(env: Env): Promise<any[]> {
   const { results } = await env.DB.prepare(`
     SELECT m.id,m.filename,m.mime_type,m.byte_size,m.width,m.height,m.source,m.parent_media_id,

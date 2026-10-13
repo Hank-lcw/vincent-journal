@@ -295,28 +295,41 @@ function approvalSection(title,items,render){
   return `<div style="margin-top:22px"><div class="meta">${e(title)}</div>${items.length?items.map(render).join(''):'<p class="empty-state">目前沒有待處理項目。</p>'}</div>`;
 }
 async function loadPublish(){
-  try{
-    const [arts,iss,camps,soc]=await Promise.all([
-      api('/studio/api/admin/articles'),
-      api('/studio/api/admin/issues'),
-      api('/studio/api/admin/newsletter/campaigns'),
-      api('/studio/api/admin/social')
-    ]);
-    articlesCache=arts.articles||[];issuesCache=iss.issues||[];campaignsCache=camps.campaigns||[];socialDraftsCache=soc.drafts||[];
-    const pa=articlesCache.filter(a=>['in_review','approved'].includes(a.status));
-    const pi=issuesCache.filter(x=>['in_review','approved'].includes(x.status));
-    const pc=campaignsCache.filter(x=>['in_review','approved'].includes(x.status));
-    const ps=socialDraftsCache.filter(x=>['in_review','approved'].includes(x.status));
-    $('#approvalSummary').innerHTML=
-      approvalSection('文章',pa,a=>`<div class="status-row"><div><strong>${e(a.title)}</strong><div class="meta">${e(statusLabel(a.status))} · ${e(categoryLabel(a.category))}</div></div><div class="studio-actions">${articleReviewButtons(a)}</div></div>`)+
-      approvalSection('刊物',pi,x=>`<div class="status-row"><div><strong>VOL. ${String(x.volume).padStart(3,'0')} · ${e(x.title)}</strong><div class="meta">${e(statusLabel(x.status))} · ${e(x.article_count||0)} 篇文章</div></div><div class="studio-actions">${issueReviewButtons(x)}</div></div>`)+
-      approvalSection('電子報',pc,x=>`<div class="status-row"><div><strong>${e(x.subject)}</strong><div class="meta">${e(statusLabel(x.status))}${x.scheduled_at?' · '+e(String(x.scheduled_at).slice(0,16)):''}</div></div><div class="studio-actions">${campaignReviewButtons(x)}</div></div>`)+
-      approvalSection('社群',ps,x=>`<div class="status-row"><div><strong>${e(x.title||x.article_title||x.platform)}</strong><div class="meta">${e(x.platform)} · ${e(statusLabel(x.status))}${x.scheduled_at?' · '+e(String(x.scheduled_at).slice(0,16)):''}</div></div><div class="studio-actions">${socialReviewButtons(x)}</div></div>`);
-    $$('[data-pub-article]').forEach(b=>b.onclick=()=>runArticleAction(b.dataset.id,b.dataset.pubArticle));
-    $$('[data-pub-issue]').forEach(b=>b.onclick=()=>runIssueAction(b.dataset.id,b.dataset.pubIssue));
-    $$('[data-pub-campaign]').forEach(b=>b.onclick=()=>campaignAction(b.dataset.id,b.dataset.pubCampaign));
-    $$('[data-pub-social]').forEach(b=>b.onclick=()=>socialAction(b.dataset.id,b.dataset.pubSocial));
-  }catch(err){toast(err.message)}
+  const sources=[
+    ['文章', '/studio/api/admin/articles', 'articles'],
+    ['刊物', '/studio/api/admin/issues', 'issues'],
+    ['電子報', '/studio/api/admin/newsletter/campaigns', 'campaigns'],
+    ['社群', '/studio/api/admin/social', 'drafts']
+  ];
+  const results=await Promise.allSettled(sources.map(([,url])=>api(url)));
+  const errors=[];
+  const values=results.map((result,i)=>{
+    if(result.status==='fulfilled')return result.value?.[sources[i][2]]||[];
+    errors.push(sources[i][0]+'：'+(result.reason?.message||'載入失敗'));
+    return null;
+  });
+  // A failure in newsletter or social must never hide pending article approvals.
+  if(values[0]!==null)articlesCache=values[0];
+  if(values[1]!==null)issuesCache=values[1];
+  if(values[2]!==null)campaignsCache=values[2];
+  if(values[3]!==null)socialDraftsCache=values[3];
+  const pa=values[0]===null?[]:articlesCache.filter(a=>['in_review','approved'].includes(a.status));
+  const pi=values[1]===null?[]:issuesCache.filter(x=>['in_review','approved'].includes(x.status));
+  const pc=values[2]===null?[]:campaignsCache.filter(x=>['in_review','approved'].includes(x.status));
+  const ps=values[3]===null?[]:socialDraftsCache.filter(x=>['in_review','approved'].includes(x.status));
+  const unavailable=i=>'<p class="empty-state">'+e(sources[i][0])+'載入失敗，請查看下方錯誤並重試。</p>';
+  const roleNotice=!canReview()?'<p class="form-note">目前登入角色：'+e(me?.role||'未知')+'。審核與發布文章至少需要 Reviewer 權限；請由 Owner 在「系統與權限」確認帳號角色。</p>':'';
+  const problems=errors.length?'<div class="form-note" role="alert">部分資料無法載入：'+e(errors.join('；'))+'。文章審核功能仍可獨立使用（文章 API 無法載入時除外）。</div>':'';
+  $('#approvalSummary').innerHTML=roleNotice+problems+
+    (values[0]===null?unavailable(0):approvalSection('文章',pa,a=>`<div class="status-row"><div><strong>${e(a.title)}</strong><div class="meta">${e(statusLabel(a.status))} · ${e(categoryLabel(a.category))}</div></div><div class="studio-actions">${articleReviewButtons(a)}</div></div>`))+
+    (values[1]===null?unavailable(1):approvalSection('刊物',pi,x=>`<div class="status-row"><div><strong>VOL. ${String(x.volume).padStart(3,'0')} · ${e(x.title)}</strong><div class="meta">${e(statusLabel(x.status))} · ${e(x.article_count||0)} 篇文章</div></div><div class="studio-actions">${issueReviewButtons(x)}</div></div>`))+
+    (values[2]===null?unavailable(2):approvalSection('電子報',pc,x=>`<div class="status-row"><div><strong>${e(x.subject)}</strong><div class="meta">${e(statusLabel(x.status))}${x.scheduled_at?' · '+e(String(x.scheduled_at).slice(0,16)):''}</div></div><div class="studio-actions">${campaignReviewButtons(x)}</div></div>`))+
+    (values[3]===null?unavailable(3):approvalSection('社群',ps,x=>`<div class="status-row"><div><strong>${e(x.title||x.article_title||x.platform)}</strong><div class="meta">${e(x.platform)} · ${e(statusLabel(x.status))}${x.scheduled_at?' · '+e(String(x.scheduled_at).slice(0,16)):''}</div></div><div class="studio-actions">${socialReviewButtons(x)}</div></div>`));
+  $$('[data-pub-article]').forEach(b=>b.onclick=()=>runArticleAction(b.dataset.id,b.dataset.pubArticle));
+  $$('[data-pub-issue]').forEach(b=>b.onclick=()=>runIssueAction(b.dataset.id,b.dataset.pubIssue));
+  $$('[data-pub-campaign]').forEach(b=>b.onclick=()=>campaignAction(b.dataset.id,b.dataset.pubCampaign));
+  $$('[data-pub-social]').forEach(b=>b.onclick=()=>socialAction(b.dataset.id,b.dataset.pubSocial));
+  if(errors.length)toast('發布中心部分載入失敗：'+errors.join('；'));
 }
 $('#newArticleBtn').onclick=()=>openArticleEditor();
 $('#cancelArticleBtn').onclick=closeArticleEditor;

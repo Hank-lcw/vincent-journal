@@ -44,7 +44,7 @@ function configure(force=false){
  const journalSize=mobile?Math.max(13,viewWidth*.040):37;
  const topY=mobile?453:450;
  const bottomY=mobile?508:534;
- letters.innerHTML=`<text class="vjp-glyph-text" x="${center}" y="${topY}" text-anchor="middle" textLength="${titleWidth}" lengthAdjust="spacingAndGlyphs" font-size="${titleSize}">VINCENT</text><text class="vjp-glyph-text vjp-glyph-journal" x="${center}" y="${bottomY}" text-anchor="middle" textLength="${journalWidth}" lengthAdjust="spacing" font-size="${journalSize}">JOURNAL</text>`;
+ letters.innerHTML=`<text class="vjp-glyph-text" x="${center}" y="${topY}" text-anchor="middle" textLength="${titleWidth}" lengthAdjust="spacing" font-size="${titleSize}">VINCENT</text><text class="vjp-glyph-text vjp-glyph-journal" x="${center}" y="${bottomY}" text-anchor="middle" textLength="${journalWidth}" lengthAdjust="spacing" font-size="${journalSize}">JOURNAL</text>`;
  inside.setAttribute('width',String(viewWidth));
  root.querySelector('#vjpDarkRect')?.setAttribute('width',String(viewWidth));
  root.querySelector('#vjpInsideTint')?.setAttribute('width',String(viewWidth));

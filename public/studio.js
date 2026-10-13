@@ -53,7 +53,14 @@ async function fetchMedia(force=false){
   return mediaCache;
 }
 function fillMediaSelect(select,selected=''){
-  select.innerHTML='<option value="">尚未選擇</option>'+mediaCache.map(m=>`<option value="${e(m.id)}" ${m.id===selected?'selected':''}>${e(m.filename)} · ${e(m.source)} · ${m.visibility==='public'?'公開':'私人'}</option>`).join('');
+  select.innerHTML='<option value="">尚未選擇</option>'+mediaCache.filter(m=>String(m.mime_type||'').startsWith('image/')).map(m=>`<option value="${e(m.id)}" ${m.id===selected?'selected':''}>${e(m.filename)} · ${e(m.source)} · ${m.visibility==='public'?'公開':'私人'}</option>`).join('');
+}
+async function refreshArticleCoverMedia(selected=$('#articleCover').value){
+  try{
+    await fetchMedia(true);
+    fillMediaSelect($('#articleCover'),selected);
+    toast('封面圖片清單已更新');
+  }catch(err){toast('更新封面圖片失敗：'+err.message)}
 }
 function articleActionButtons(a){
   const out=[`<button class="btn" data-edit-article="${e(a.id)}">編輯</button>`,`<button class="btn" data-revisions="${e(a.id)}">版本</button>`];
@@ -198,7 +205,7 @@ async function deleteArticleFromStudio(id){
 }
 async function openArticleEditor(id=null){
   try{
-    await fetchMedia();
+    await fetchMedia(true);
     editingArticleId=id;
     const a=id?articlesCache.find(x=>x.id===id):null;
     $('#articleTitle').value=a?.title||'';
@@ -697,13 +704,16 @@ $('#uploadMediaBtn').onclick=async()=>{
     catch{mediaCache=[];await loadMedia(true);toast('圖片已上傳；AI 命名暫時失敗，可稍後在素材卡重試')}
   }catch(err){toast(err.message)}
 };
+$('#refreshArticleCoverBtn').onclick=()=>refreshArticleCoverMedia();
 $('#generateImageBtn').onclick=async()=>{
   try{
     toast('正在生成圖片…');
     const r=await api('/studio/api/admin/media/generate',{method:'POST',body:JSON.stringify({prompt:$('#aiPrompt').value,size:'1536x1024'})});
     toast('AI 圖片已建立，正在建立素材名稱…');
     try{await analyzeMediaName(r.media.id,null,true)}catch{}
-    mediaCache=[];await loadMedia(true);toast('AI 圖片已建立');
+    mediaCache=[];await loadMedia(true);
+    if(!$('#articleEditor').hidden)fillMediaSelect($('#articleCover'),$('#articleCover').value);
+    toast('AI 圖片已建立');
   }catch(err){toast(err.message)}
 };
 $('#editImageBtn').onclick=async()=>{

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Instrument+Serif&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<script defer src="studio.js"></script><link rel="stylesheet" href="studio-site-visuals.css">
+<script defer src="studio.js"></script><script defer src="media-health.js"></script><link rel="stylesheet" href="studio-site-visuals.css">
 </head>
 <body class="studio-body">
 <div class="studio-shell">
@@ -224,6 +224,10 @@
       <div class="field range-field compare-range"><label>比較分隔 <output id="compareOut">50%</output></label><input id="compareSlider" type="range" min="0" max="100" value="50"></div>
     </div>
 
+    <div class="panel" id="mediaHealthPanel" style="margin-top:16px">
+      <div class="panel-head"><div><h3>圖片完整性檢查</h3><p>只檢查資料庫的圖片筆數，以及最近 12 筆圖片在 R2 是否存在；不更動任何圖片。</p></div><button type="button" class="btn" id="mediaHealthBtn">開始唯讀檢查</button></div>
+      <div class="form-note" id="mediaHealthResult" role="status">此功能僅供管理員使用。沒有檢查前不會讀取任何 R2 圖檔資料。</div>
+    </div>
     <div class="media-library-head">
       <div><div class="meta">LIBRARY</div><h3>素材庫</h3><p>未被文章、刊物或社群內容使用，且沒有衍生子版本的素材可直接刪除。</p></div>
       <button class="btn" id="reloadMediaBtn">重新整理</button>

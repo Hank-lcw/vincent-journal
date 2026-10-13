@@ -77,10 +77,11 @@ async function renderArticle(request: Request, env: Env, base: string, slug: str
   const body = '<div class="meta">' + escapeHtml(article.category || 'EDITORIAL') + '</div>' +
     '<h1 class="article-title">' + escapeHtml(article.title) + '</h1>' +
     '<p class="lead">' + escapeHtml(article.excerpt || article.subtitle || '') + '</p>' +
-    (imageUrl ? '<img class="cover" src="' + escapeHtml(imageUrl) + '" alt="' + escapeHtml(article.cover_alt || article.title) + '">' : '') +
-    (byline ? '<p class="meta">作者：' +
+    (byline ? '<p class="meta article-byline">編輯／作者 · ' +
       (isVincent(byline) ? '<a href="' + PERSON_PATH + '">' + escapeHtml(byline) + '</a>' : escapeHtml(byline)) +
       '</p>' : '') +
+    (imageUrl ? '<img class="cover" src="' + escapeHtml(imageUrl) + '" alt="' + escapeHtml(article.cover_alt || article.title) + '">' : '') +
+
     '<div class="article-body">' + sanitizeArticleHtml(String(article.body || '')) + '</div>';
   const template = await asset.text();
   const replaced = template.replace(/<title>[^<]*<\/title>/, '<title>' + escapeHtml(title) + '｜' + JOURNAL + '</title>')

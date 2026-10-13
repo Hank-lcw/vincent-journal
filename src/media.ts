@@ -14,7 +14,8 @@ export async function diagnoseMediaStorage(env: Env): Promise<any> {
   let missing=0, errors=0;
   const samples=await Promise.all((rows.results||[]).map(async row=>{
     try{
-      const object=await env.MEDIA.head(row.object_key);
+      const object=await env.MEDIA.get(row.object_key, {range:{offset:0,length:1}});
+      if(object) await object.body.cancel().catch(()=>{});
       if(!object) missing++;
       return { id:row.id, visibility:row.visibility, r2_exists:Boolean(object) };
     }catch(_){

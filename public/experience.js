@@ -28,15 +28,15 @@ const revealObserver=!reduced&&'IntersectionObserver' in window?new Intersection
 
 function reveal(root=document){
   const nodes=[];
-  if(root.nodeType===1 && root.matches?.('.editorial-section,.section-header,.selection-card,.journal-card,.discover-row,.about-strip,.newsletter-strip,.article-reader>.meta,.article-title,.article-reader>.lead,.article-reader>.cover,.article-body>*,#issueArchive .panel,.page-head,.discover-intro')) nodes.push(root);
-  nodes.push(...qa('.editorial-section,.section-header,.selection-card,.journal-card,.discover-row,.about-strip,.newsletter-strip,.article-reader>.meta,.article-title,.article-reader>.lead,.article-reader>.cover,.article-body>*,#issueArchive .panel,.page-head,.discover-intro',root));
+  if(root.nodeType===1 && root.matches?.('.editorial-section,.section-header,.selection-card,.journal-card,.discover-row,.about-strip,.newsletter-strip,.article-reader>.meta,.article-title,.article-reader>.lead,.article-body>*,#issueArchive .panel,.page-head,.discover-intro')) nodes.push(root);
+  nodes.push(...qa('.editorial-section,.section-header,.selection-card,.journal-card,.discover-row,.about-strip,.newsletter-strip,.article-reader>.meta,.article-title,.article-reader>.lead,.article-body>*,#issueArchive .panel,.page-head,.discover-intro',root));
   let i=0;
   for(const el of nodes){
     if(el.dataset.vjReveal)continue;
     el.dataset.vjReveal='1';
     el.classList.add('vj-reveal');
     el.style.setProperty('--vj-delay',Math.min(i%5,4)*45+'ms');
-    if(el.matches('.hero-media,.article-reader>.cover,.selection-card.image'))el.classList.add('vj-reveal-image');
+    if(el.matches('.hero-media,.selection-card.image'))el.classList.add('vj-reveal-image');
     if(revealObserver)revealObserver.observe(el);else el.classList.add('is-visible');
     i++;
   }

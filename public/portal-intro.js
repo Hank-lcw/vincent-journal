@@ -36,9 +36,15 @@ function configure(force=false){
  viewWidth=mobile?Math.round(900*w/h):1440;
  svg.setAttribute('viewBox',`0 0 ${viewWidth} 900`);
  const center=viewWidth/2;
- letters.innerHTML=mobile
-  ? `<text class="vjp-glyph-text" x="${center}" y="428" text-anchor="middle" textLength="${viewWidth*.91}" lengthAdjust="spacingAndGlyphs" font-size="${viewWidth*.225}">VINCENT</text><text class="vjp-glyph-text" x="${center}" y="530" text-anchor="middle" textLength="${viewWidth*.91}" lengthAdjust="spacingAndGlyphs" font-size="${viewWidth*.225}">JOURNAL</text>`
-  : '<text class="vjp-glyph-text" x="720" y="438" text-anchor="middle" textLength="1260" lengthAdjust="spacingAndGlyphs" font-size="205">VINCENT</text><text class="vjp-glyph-text" x="720" y="636" text-anchor="middle" textLength="1260" lengthAdjust="spacingAndGlyphs" font-size="205">JOURNAL</text>';
+ // Both lines use the same 2-line composition as the site masthead;
+ // the smaller JOURNAL line remains the target of the scroll-through mask.
+ const titleWidth=mobile?viewWidth*.86:960;
+ const titleSize=mobile?viewWidth*.205:174;
+ const journalWidth=titleWidth*.59;
+ const journalSize=mobile?Math.max(13,viewWidth*.040):37;
+ const topY=mobile?453:450;
+ const bottomY=mobile?508:534;
+ letters.innerHTML=`<text class="vjp-glyph-text" x="${center}" y="${topY}" text-anchor="middle" textLength="${titleWidth}" lengthAdjust="spacingAndGlyphs" font-size="${titleSize}">VINCENT</text><text class="vjp-glyph-text vjp-glyph-journal" x="${center}" y="${bottomY}" text-anchor="middle" textLength="${journalWidth}" lengthAdjust="spacing" font-size="${journalSize}">JOURNAL</text>`;
  inside.setAttribute('width',String(viewWidth));
  root.querySelector('#vjpDarkRect')?.setAttribute('width',String(viewWidth));
  root.querySelector('#vjpInsideTint')?.setAttribute('width',String(viewWidth));
@@ -49,14 +55,14 @@ function configure(force=false){
   anchorY=box.y+box.height*.53;
   // The new JOURNAL line is deliberately smaller. Scale farther so that its
   // real O (index 1) still grows into a full-viewport portal, even on phones.
-  zoomTarget=mobile?16:28;
+  zoomTarget=mobile?105:80;
   const scale=Math.max(w/viewWidth,h/900);
   const crop=(h-900*scale)/2;
   const bottom=(last.getBBox().y+last.getBBox().height)*scale+crop;
   subtitle.style.top=Math.min(h-110,bottom+(mobile?21:28))+'px';
  }catch(_){
   anchorX=viewWidth*.25;anchorY=mobile?495:560;
-  zoomTarget=mobile?16:28;
+  zoomTarget=mobile?105:80;
  }
  lastProgress=-1; // reflow after font load/rotation must repaint current scroll stage
  render();

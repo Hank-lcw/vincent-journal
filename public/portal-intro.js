@@ -38,13 +38,13 @@ function configure(force=false){
  const center=viewWidth/2;
  // Both lines use the same 2-line composition as the site masthead;
  // the smaller JOURNAL line remains the target of the scroll-through mask.
- const titleWidth=mobile?viewWidth*.93:960;
+ const titleWidth=mobile?viewWidth*.89:960;
  const titleSize=mobile?viewWidth*.155:174;
  const journalWidth=titleWidth*.59;
  const journalSize=mobile?Math.max(13,viewWidth*.040):37;
  const topY=mobile?453:450;
  const bottomY=mobile?508:534;
- letters.innerHTML=`<text class="vjp-glyph-text" x="${center}" y="${topY}" text-anchor="middle" textLength="${titleWidth}" lengthAdjust="spacing" font-size="${titleSize}" ${mobile?'style="letter-spacing:.12em"':''}>VINCENT</text><text class="vjp-glyph-text vjp-glyph-journal" x="${center}" y="${bottomY}" text-anchor="middle" textLength="${journalWidth}" lengthAdjust="spacing" font-size="${journalSize}">JOURNAL</text>`;
+ letters.innerHTML=`<text class="vjp-glyph-text" x="${center}" y="${topY}" text-anchor="middle" textLength="${titleWidth}" lengthAdjust="spacing" font-size="${titleSize}" ${mobile?'style="letter-spacing:.065em"':''}>VINCENT</text><text class="vjp-glyph-text vjp-glyph-journal" x="${center}" y="${bottomY}" text-anchor="middle" textLength="${journalWidth}" lengthAdjust="spacing" font-size="${journalSize}">JOURNAL</text>`;
  inside.setAttribute('width',String(viewWidth));
  root.querySelector('#vjpDarkRect')?.setAttribute('width',String(viewWidth));
  root.querySelector('#vjpInsideTint')?.setAttribute('width',String(viewWidth));
